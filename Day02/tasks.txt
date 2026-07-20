@@ -1,0 +1,5 @@
+1. Learned to create, switch, and merge branches using Git
+2. Used .gitignore to exclude untrackable files such as Virtual Environment , Access tokens etc
+3. Understood the process of creating , reviewing and merging Pull requests
+4. Created and executed basic shell scripting commands.
+5. Created "hello.sh" and used chmod(change mode) to create an executable using ("+ & x")
