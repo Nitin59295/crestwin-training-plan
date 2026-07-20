@@ -1,0 +1,4 @@
+1. Learned to create,switch and merge branches using git
+2. .gitignore is used to exclude files that might not be useful such as:-  Virtual Environment(venv), Access keys etc
+3. GitHub PR workflow :- Understood the process of raising PR, reveiwing the PR requests and Merging Pull requests
+4. Shell Srcipting :- Wrote and executed basic Shell commands
