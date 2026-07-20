@@ -1,0 +1,5 @@
+1. Create GitHub Repository :- crestwin-training-plan
+2. I am using PYCHARM as my main IDE.
+3. Installed all the required extensions for DAY 1:- pylance, Black, isort
+4. Used Git commands to push the local files into the GitHub repository
+5. Read and implemented linux CLI commands
