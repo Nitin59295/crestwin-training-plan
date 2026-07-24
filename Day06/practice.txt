@@ -1,0 +1,75 @@
+==============BASIC Questions==================
+
+1. Write an SQL query to display all columns from the employees table.
+
+ans: select * from employees
+
+2. Display only the employee name, salary, and city.
+
+ans: select emp_name,salary,city from employees
+
+3. Find employees whose salary is greater than 60,000.
+
+ans: SELECT emp_id,emp_name, salary FROM employees WHERE salary > 60000
+
+
+
+
+
+================Medium Questions===================
+1. Display the employee name along with their department name.
+
+ans: SELECT e.emp_id, e.emp_name, d.dept_name
+     from employees e join departments d
+     on e.dept_id = d.dept_id
+
+2. Find the average salary of each department.
+
+ans:  SELECT d.dept_name, AVG(e.salary) AS AVG_SALARY
+      from departments d join employees e
+      on d.dept_id = e.dept_id
+      GROUP by dept_name
+
+3. Find the total order amount for each employee.
+
+ans: SELECT e.emp_name, SUM(o.order_amount) AS TOTAL_ORDER_AMOUNT
+     from employees e join orders o
+     on e.emp_id = o.emp_id
+     group by e.emp_name
+
+
+
+
+=================Advanced Questions=================
+1. Find employees whose salary is greater than the average salary of the company.
+ans: SELECT
+    emp_name,
+    salary,
+    AVG(salary) OVER () AS company_avg
+FROM employees
+WHERE salary > (
+    SELECT AVG(salary)
+    FROM employees
+);
+
+2. Rank all employees based on salary (highest first) using DENSE_RANK().
+ans: select emp_name, salary,
+     DENSE_RANK() over(order by salary DESC) as salary_rank
+     from employees
+
+
+3. Find the highest-paid employee in each department.
+ans: SELECT emp_id, emp_name, salary, dept_id
+FROM (
+    SELECT
+        emp_id,
+        emp_name,
+        salary,
+        dept_id,
+        ROW_NUMBER() OVER (
+            PARTITION BY dept_id
+            ORDER BY salary DESC
+        ) AS rn
+    FROM employees
+) t
+WHERE rn = 1;
