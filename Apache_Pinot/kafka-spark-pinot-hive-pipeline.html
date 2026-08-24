@@ -1,0 +1,1894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Real-Time Data Engineering Pipeline Simulator</title>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   CSS RESET & VARIABLES
+   ═══════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #1a1d27;
+  --bg-card: #222639;
+  --bg-card-hover: #2a2f45;
+  --border: #2e3348;
+  --text-primary: #e8eaf0;
+  --text-secondary: #9498ad;
+  --text-muted: #6b6f85;
+  --accent-kafka: #e05a00;
+  --accent-spark: #e8540a;
+  --accent-pinot: #00b4d8;
+  --accent-hive: #f7b731;
+  --accent-success: #2ecc71;
+  --accent-error: #e74c3c;
+  --accent-warning: #f39c12;
+  --accent-info: #3498db;
+  --accent-purple: #9b59b6;
+  --glow-kafka: rgba(224, 90, 0, 0.3);
+  --glow-spark: rgba(232, 84, 10, 0.3);
+  --glow-pinot: rgba(0, 180, 216, 0.3);
+  --glow-hive: rgba(247, 183, 49, 0.3);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  --transition: 0.3s ease;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SCROLLBAR
+   ═══════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER
+   ═══════════════════════════════════════════════════════════ */
+.header {
+  text-align: center;
+  padding: 32px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(34,38,57,0.8) 0%, var(--bg-primary) 100%);
+}
+.header h1 {
+  font-size: clamp(1.3rem, 3vw, 2rem);
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-kafka), var(--accent-spark), var(--accent-pinot), var(--accent-hive));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 4px;
+}
+.header .subtitle {
+  font-size: clamp(0.85rem, 1.8vw, 1.05rem);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  letter-spacing: 1px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TOP COUNTERS
+   ═══════════════════════════════════════════════════════════ */
+.counters-bar {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  justify-content: center; padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.counter-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-card); padding: 8px 16px;
+  border-radius: 999px; border: 1px solid var(--border);
+  font-size: 0.82rem; white-space: nowrap;
+  transition: var(--transition);
+}
+.counter-chip .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.counter-chip .value {
+  font-weight: 700; font-family: var(--font-mono);
+  min-width: 28px; text-align: right;
+}
+.counter-chip.active { border-color: var(--accent-success); }
+
+/* ═══════════════════════════════════════════════════════════
+   CONTROLS BAR
+   ═══════════════════════════════════════════════════════════ */
+.controls {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  justify-content: center; align-items: center;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.btn {
+  padding: 8px 16px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--bg-card);
+  color: var(--text-primary); cursor: pointer; font-size: 0.82rem;
+  font-family: var(--font); transition: var(--transition);
+  white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:hover { background: var(--bg-card-hover); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn.primary {
+  background: linear-gradient(135deg, var(--accent-kafka), var(--accent-spark));
+  border-color: var(--accent-kafka); font-weight: 600;
+}
+.btn.primary:hover { filter: brightness(1.1); }
+.btn.danger { border-color: var(--accent-error); color: var(--accent-error); }
+.btn.warning { border-color: var(--accent-warning); color: var(--accent-warning); }
+.btn.info { border-color: var(--accent-info); color: var(--accent-info); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.speed-selector {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--bg-card); border-radius: var(--radius-sm);
+  border: 1px solid var(--border); padding: 2px;
+}
+.speed-btn {
+  padding: 6px 10px; border: none; background: transparent;
+  color: var(--text-secondary); cursor: pointer; font-size: 0.78rem;
+  border-radius: 6px; transition: var(--transition); font-family: var(--font-mono);
+}
+.speed-btn.active {
+  background: var(--accent-info); color: #fff; font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MAIN LAYOUT
+   ═══════════════════════════════════════════════════════════ */
+.main { padding: 20px; max-width: 1600px; margin: 0 auto; }
+
+/* Pipeline Flow — horizontal on desktop, vertical on mobile */
+.pipeline-flow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   COMPONENT CARDS
+   ═══════════════════════════════════════════════════════════ */
+.component-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: var(--transition);
+  position: relative;
+}
+.component-card.active {
+  box-shadow: var(--shadow);
+}
+.component-card.active.sources { border-color: var(--accent-success); box-shadow: 0 0 20px rgba(46,204,113,0.15); }
+.component-card.active.kafka { border-color: var(--accent-kafka); box-shadow: 0 0 20px var(--glow-kafka); }
+.component-card.active.spark { border-color: var(--accent-spark); box-shadow: 0 0 20px var(--glow-spark); }
+.component-card.active.pinot { border-color: var(--accent-pinot); box-shadow: 0 0 20px var(--glow-pinot); }
+.component-card.active.hive { border-color: var(--accent-hive); box-shadow: 0 0 20px var(--glow-hive); }
+
+.card-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.card-header .icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; font-weight: 700; flex-shrink: 0;
+}
+.card-header .icon.sources-icon { background: rgba(46,204,113,0.15); color: var(--accent-success); }
+.card-header .icon.kafka-icon { background: rgba(224,90,0,0.15); color: var(--accent-kafka); }
+.card-header .icon.spark-icon { background: rgba(232,84,10,0.15); color: var(--accent-spark); }
+.card-header .icon.pinot-icon { background: rgba(0,180,216,0.15); color: var(--accent-pinot); }
+.card-header .icon.hive-icon { background: rgba(247,183,49,0.15); color: var(--accent-hive); }
+
+.card-header .title-group { min-width: 0; }
+.card-header h3 { font-size: 0.92rem; font-weight: 700; line-height: 1.2; }
+.card-header .role { font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.5px; }
+
+.card-body { padding: 14px 16px; font-size: 0.82rem; }
+
+/* Status label */
+.status-label {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.status-label.idle { background: rgba(107,111,133,0.2); color: var(--text-muted); }
+.status-label.active { background: rgba(46,204,113,0.15); color: var(--accent-success); }
+.status-label.warning { background: rgba(243,156,18,0.15); color: var(--accent-warning); }
+.status-label.error { background: rgba(231,76,60,0.15); color: var(--accent-error); }
+
+/* Mini stats */
+.mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.mini-stat {
+  background: rgba(0,0,0,0.2); padding: 6px 10px;
+  border-radius: var(--radius-sm); text-align: center;
+}
+.mini-stat .label { font-size: 0.68rem; color: var(--text-muted); }
+.mini-stat .val { font-size: 0.9rem; font-weight: 700; font-family: var(--font-mono); }
+
+/* Producer list */
+.producer-list { list-style: none; margin-top: 8px; }
+.producer-list li {
+  padding: 5px 10px; margin-bottom: 4px;
+  background: rgba(0,0,0,0.2); border-radius: 6px;
+  font-size: 0.78rem; display: flex; align-items: center; gap: 6px;
+  transition: var(--transition);
+}
+.producer-list li .pulse {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text-muted); flex-shrink: 0;
+}
+.producer-list li.sending .pulse { background: var(--accent-success); box-shadow: 0 0 6px var(--accent-success); }
+
+/* Partitions */
+.partition-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 4px; font-size: 0.75rem;
+}
+.partition-label {
+  font-family: var(--font-mono); color: var(--text-muted);
+  width: 22px; flex-shrink: 0; text-align: center;
+}
+.partition-bar {
+  flex: 1; height: 22px; background: rgba(0,0,0,0.3);
+  border-radius: 4px; overflow: hidden; position: relative;
+  display: flex; align-items: center; padding: 0 4px; gap: 2px;
+}
+.partition-msg {
+  width: 14px; height: 14px; border-radius: 3px;
+  background: var(--accent-kafka); flex-shrink: 0;
+  font-size: 0.55rem; display: flex; align-items: center;
+  justify-content: center; color: #fff; font-weight: 700;
+  animation: msgAppear 0.3s ease;
+}
+@keyframes msgAppear { from { transform: scale(0); } to { transform: scale(1); } }
+.partition-count {
+  font-family: var(--font-mono); color: var(--text-muted);
+  font-size: 0.7rem; margin-left: auto; flex-shrink: 0;
+}
+
+/* Spark stages */
+.spark-stages { margin-top: 8px; }
+.spark-stage {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px; margin-bottom: 3px;
+  background: rgba(0,0,0,0.2); border-radius: 6px;
+  font-size: 0.75rem; color: var(--text-muted);
+  transition: var(--transition);
+}
+.spark-stage .stage-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--text-muted); flex-shrink: 0;
+  transition: var(--transition);
+}
+.spark-stage.active .stage-dot { background: var(--accent-spark); box-shadow: 0 0 6px var(--accent-spark); }
+.spark-stage.active { color: var(--text-primary); }
+.spark-stage.done .stage-dot { background: var(--accent-success); }
+.spark-stage.done { color: var(--accent-success); }
+
+/* Pinot / Hive table */
+.data-table-wrapper { margin-top: 8px; overflow-x: auto; }
+.data-table {
+  width: 100%; border-collapse: collapse; font-size: 0.72rem;
+  font-family: var(--font-mono);
+}
+.data-table th {
+  background: rgba(0,0,0,0.3); padding: 5px 8px;
+  text-align: left; color: var(--text-muted); font-weight: 600;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.data-table td {
+  padding: 4px 8px; border-bottom: 1px solid rgba(46,49,69,0.5);
+  white-space: nowrap;
+}
+.data-table tr { transition: var(--transition); }
+.data-table tr.new-row { animation: rowFlash 0.6s ease; }
+@keyframes rowFlash { 0% { background: rgba(0,180,216,0.2); } 100% { background: transparent; } }
+
+/* Hive partitions tree */
+.hive-tree { font-family: var(--font-mono); font-size: 0.75rem; margin-top: 8px; }
+.hive-tree .tree-item {
+  padding: 3px 0 3px 16px; color: var(--text-secondary);
+  border-left: 1px solid var(--border); margin-left: 8px;
+}
+.hive-tree .tree-root { padding-left: 0; border-left: none; margin-left: 0; color: var(--accent-hive); font-weight: 600; }
+
+/* SQL query box */
+.query-box {
+  margin-top: 10px; background: rgba(0,0,0,0.3);
+  border-radius: var(--radius-sm); overflow: hidden;
+}
+.query-box pre {
+  padding: 10px 12px; font-size: 0.72rem;
+  font-family: var(--font-mono); color: var(--accent-pinot);
+  overflow-x: auto; white-space: pre;
+}
+.query-box.hive pre { color: var(--accent-hive); }
+.query-box .query-actions {
+  padding: 6px 12px; border-top: 1px solid var(--border);
+  display: flex; justify-content: flex-end;
+}
+
+/* Query results */
+.query-results {
+  margin-top: 8px; background: rgba(0,0,0,0.2);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  font-size: 0.75rem; font-family: var(--font-mono);
+  display: none;
+}
+.query-results.visible { display: block; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ═══════════════════════════════════════════════════════════
+   FORK SECTION (between Spark and Pinot/Hive)
+   ═══════════════════════════════════════════════════════════ */
+/* Handled within the grid; the 4th and 5th columns are Pinot and Hive side by side */
+
+/* ═══════════════════════════════════════════════════════════
+   LOWER SECTIONS
+   ═══════════════════════════════════════════════════════════ */
+.section-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.section-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.section-card .sec-header {
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  font-weight: 700; font-size: 0.92rem;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.section-card .sec-body { padding: 14px 16px; font-size: 0.82rem; }
+
+/* Event Journey */
+.journey-list { list-style: none; position: relative; padding-left: 20px; }
+.journey-list::before {
+  content: ''; position: absolute; left: 6px; top: 0;
+  bottom: 0; width: 2px; background: var(--border);
+}
+.journey-item {
+  position: relative; margin-bottom: 12px; padding-left: 12px;
+}
+.journey-item::before {
+  content: ''; position: absolute; left: -17px; top: 6px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--text-muted); border: 2px solid var(--bg-card);
+}
+.journey-item.step-sources::before { background: var(--accent-success); }
+.journey-item.step-kafka::before { background: var(--accent-kafka); }
+.journey-item.step-spark::before { background: var(--accent-spark); }
+.journey-item.step-pinot::before { background: var(--accent-pinot); }
+.journey-item.step-hive::before { background: var(--accent-hive); }
+.journey-item .time { font-family: var(--font-mono); color: var(--text-muted); font-size: 0.72rem; }
+.journey-item .desc { color: var(--text-secondary); font-size: 0.78rem; margin-top: 2px; }
+.journey-item .meta { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+/* Event selector chips */
+.event-chips {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;
+}
+.event-chip {
+  padding: 4px 10px; border-radius: 999px; font-size: 0.72rem;
+  font-family: var(--font-mono); cursor: pointer;
+  border: 1px solid var(--border); background: rgba(0,0,0,0.2);
+  color: var(--text-secondary); transition: var(--transition);
+}
+.event-chip:hover { border-color: var(--accent-info); color: var(--accent-info); }
+.event-chip.selected { border-color: var(--accent-info); background: rgba(52,152,219,0.15); color: var(--accent-info); }
+
+/* Failure simulation */
+.failure-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.failure-btn {
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: rgba(0,0,0,0.2);
+  cursor: pointer; text-align: left; transition: var(--transition);
+  color: var(--text-secondary); font-size: 0.78rem;
+  font-family: var(--font);
+}
+.failure-btn:hover { border-color: var(--accent-warning); background: rgba(243,156,18,0.05); }
+.failure-btn.active { border-color: var(--accent-error); background: rgba(231,76,60,0.1); color: var(--accent-error); }
+.failure-btn .f-title { font-weight: 700; margin-bottom: 2px; font-size: 0.8rem; }
+.failure-btn .f-desc { font-size: 0.7rem; color: var(--text-muted); }
+.failure-status {
+  margin-top: 10px; padding: 10px 12px;
+  background: rgba(231,76,60,0.08); border: 1px solid rgba(231,76,60,0.2);
+  border-radius: var(--radius-sm); font-family: var(--font-mono);
+  font-size: 0.75rem; color: var(--accent-error);
+  display: none;
+}
+.failure-status.visible { display: block; }
+
+/* ═══════════════════════════════════════════════════════════
+   ARCHITECTURE EXPLANATION
+   ═══════════════════════════════════════════════════════════ */
+.arch-section {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 24px; margin-bottom: 24px;
+}
+.arch-section h2 { margin-bottom: 16px; font-size: 1.1rem; }
+.arch-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px; margin-bottom: 20px;
+}
+.arch-card {
+  padding: 16px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: rgba(0,0,0,0.2);
+}
+.arch-card h4 { font-size: 0.9rem; margin-bottom: 4px; }
+.arch-card .arch-role {
+  font-size: 0.72rem; font-family: var(--font-mono);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.arch-card p { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
+
+.arch-paths {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+.arch-path {
+  padding: 16px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: rgba(0,0,0,0.2);
+  font-family: var(--font-mono); font-size: 0.8rem;
+}
+.arch-path .path-label { font-weight: 700; margin-bottom: 6px; font-size: 0.85rem; }
+.arch-path .path-flow { color: var(--text-secondary); }
+
+/* Key message */
+.key-message {
+  text-align: center; padding: 20px;
+  background: rgba(0,0,0,0.2); border-radius: var(--radius-sm);
+  margin-top: 16px;
+}
+.key-message .km-item {
+  display: inline-block; margin: 4px 8px;
+  font-family: var(--font-mono); font-size: 0.82rem;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ANIMATED PARTICLES / FLOW
+   ═══════════════════════════════════════════════════════════ */
+.flow-canvas {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 10;
+}
+
+/* Pipeline connector arrows between cards */
+.pipeline-connectors {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 5;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LOG PANEL
+   ═══════════════════════════════════════════════════════════ */
+.log-panel {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 24px; overflow: hidden;
+}
+.log-header {
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  font-weight: 700; font-size: 0.85rem;
+  display: flex; align-items: center; gap: 8px;
+}
+.log-body {
+  padding: 10px 16px; max-height: 180px; overflow-y: auto;
+  font-family: var(--font-mono); font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+.log-entry { padding: 2px 0; }
+.log-entry .log-time { color: var(--text-muted); }
+.log-entry.log-info .log-msg { color: var(--accent-info); }
+.log-entry.log-success .log-msg { color: var(--accent-success); }
+.log-entry.log-warn .log-msg { color: var(--accent-warning); }
+.log-entry.log-error .log-msg { color: var(--accent-error); }
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 1100px) {
+  .pipeline-flow {
+    grid-template-columns: 1fr;
+  }
+  .section-grid { grid-template-columns: 1fr; }
+  .arch-paths { grid-template-columns: 1fr; }
+  .failure-grid { grid-template-columns: 1fr; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MISC UTILITY
+   ═══════════════════════════════════════════════════════════ */
+.tag {
+  display: inline-block; padding: 1px 6px; border-radius: 4px;
+  font-size: 0.68rem; font-family: var(--font-mono);
+  background: rgba(0,0,0,0.3); color: var(--text-muted);
+}
+.tag.realtime { background: rgba(0,180,216,0.15); color: var(--accent-pinot); }
+.tag.batch { background: rgba(247,183,49,0.15); color: var(--accent-hive); }
+
+.path-badge {
+  text-align: center; padding: 4px 12px; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 700; font-family: var(--font-mono);
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;
+  display: inline-block;
+}
+.path-badge.realtime { background: rgba(0,180,216,0.12); color: var(--accent-pinot); border: 1px solid rgba(0,180,216,0.3); }
+.path-badge.batch { background: rgba(247,183,49,0.12); color: var(--accent-hive); border: 1px solid rgba(247,183,49,0.3); }
+
+.explanation-text {
+  margin-top: 10px; padding: 10px 12px;
+  background: rgba(0,0,0,0.2); border-radius: var(--radius-sm);
+  border-left: 3px solid var(--text-muted);
+  font-size: 0.75rem; color: var(--text-secondary);
+  line-height: 1.5; font-style: italic;
+}
+.explanation-text.kafka-expl { border-left-color: var(--accent-kafka); }
+.explanation-text.spark-expl { border-left-color: var(--accent-spark); }
+.explanation-text.pinot-expl { border-left-color: var(--accent-pinot); }
+.explanation-text.hive-expl { border-left-color: var(--accent-hive); }
+
+/* Pulse animation for active processing */
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+.pulsing { animation: pulse 1s infinite; }
+
+/* Moving dot animation */
+.moving-dot {
+  position: absolute; width: 8px; height: 8px;
+  border-radius: 50%; pointer-events: none; z-index: 20;
+  transition: none;
+}
+
+/* Footer */
+.footer {
+  text-align: center; padding: 20px;
+  color: var(--text-muted); font-size: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     HEADER
+     ═══════════════════════════════════════════════════════════ -->
+<div class="header">
+  <h1>Real-Time Data Engineering Pipeline Simulator</h1>
+  <div class="subtitle">Kafka → Spark → Pinot / Hive</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TOP COUNTERS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="counters-bar">
+  <div class="counter-chip" id="cnt-generated">
+    <span class="dot" style="background:var(--accent-success)"></span>
+    Events Generated <span class="value" id="val-generated">0</span>
+  </div>
+  <div class="counter-chip" id="cnt-kafka">
+    <span class="dot" style="background:var(--accent-kafka)"></span>
+    Kafka Messages <span class="value" id="val-kafka">0</span>
+  </div>
+  <div class="counter-chip" id="cnt-spark">
+    <span class="dot" style="background:var(--accent-spark)"></span>
+    Spark Processed <span class="value" id="val-spark">0</span>
+  </div>
+  <div class="counter-chip" id="cnt-pinot">
+    <span class="dot" style="background:var(--accent-pinot)"></span>
+    Pinot Records <span class="value" id="val-pinot">0</span>
+  </div>
+  <div class="counter-chip" id="cnt-hive">
+    <span class="dot" style="background:var(--accent-hive)"></span>
+    Hive Records <span class="value" id="val-hive">0</span>
+  </div>
+  <div class="counter-chip" id="cnt-latency">
+    <span class="dot" style="background:var(--accent-purple)"></span>
+    Latency <span class="value" id="val-latency">0ms</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CONTROLS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="controls">
+  <button class="btn primary" id="btn-execute" onclick="executePipeline()">▶ Execute Pipeline</button>
+  <button class="btn" id="btn-pause" onclick="togglePause()" disabled>⏸ Pause</button>
+  <button class="btn" id="btn-reset" onclick="resetPipeline()">↻ Reset</button>
+  <button class="btn info" onclick="generateSingleEvent()">+ Generate Event</button>
+  <button class="btn warning" onclick="injectDuplicate()">⚡ Inject Duplicate</button>
+  <button class="btn danger" onclick="injectBadRecord()">⛔ Inject Bad Record</button>
+  <button class="btn warning" onclick="simulateKafkaLag()">📊 Kafka Lag</button>
+  <button class="btn danger" onclick="simulateSparkSlow()">🐢 Spark Slowdown</button>
+  <div class="speed-selector">
+    <button class="speed-btn" onclick="setSpeed(0.5)">0.5×</button>
+    <button class="speed-btn active" onclick="setSpeed(1)">1×</button>
+    <button class="speed-btn" onclick="setSpeed(2)">2×</button>
+    <button class="speed-btn" onclick="setSpeed(4)">4×</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN PIPELINE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="main">
+  <div class="pipeline-flow" id="pipeline-flow">
+
+    <!-- ─── Data Sources ─── -->
+    <div class="component-card sources" id="card-sources">
+      <div class="card-header">
+        <div class="icon sources-icon">📡</div>
+        <div class="title-group">
+          <h3>Data Sources</h3>
+          <div class="role">Producers</div>
+        </div>
+        <span class="status-label idle" id="status-sources">Idle</span>
+      </div>
+      <div class="card-body">
+        <ul class="producer-list" id="producer-list">
+          <li id="prod-ecom"><span class="pulse"></span> E-commerce App</li>
+          <li id="prod-mobile"><span class="pulse"></span> Mobile App</li>
+          <li id="prod-payment"><span class="pulse"></span> Payment Service</li>
+          <li id="prod-website"><span class="pulse"></span> Website Events</li>
+        </ul>
+        <div class="mini-stats">
+          <div class="mini-stat">
+            <div class="label">Events Sent</div>
+            <div class="val" id="src-sent">0</div>
+          </div>
+          <div class="mini-stat">
+            <div class="label">Events/sec</div>
+            <div class="val" id="src-rate">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Apache Kafka ─── -->
+    <div class="component-card kafka" id="card-kafka">
+      <div class="card-header">
+        <div class="icon kafka-icon">K</div>
+        <div class="title-group">
+          <h3>Apache Kafka</h3>
+          <div class="role">Ingestion Layer</div>
+        </div>
+        <span class="status-label idle" id="status-kafka">Idle</span>
+      </div>
+      <div class="card-body">
+        <div style="margin-bottom:6px;">
+          <span class="tag">Topic: orders-events</span>
+          <span class="tag">Partitions: 3</span>
+        </div>
+        <div id="kafka-partitions">
+          <div class="partition-row">
+            <span class="partition-label">P0</span>
+            <div class="partition-bar" id="part-0"></div>
+            <span class="partition-count" id="part-0-cnt">0</span>
+          </div>
+          <div class="partition-row">
+            <span class="partition-label">P1</span>
+            <div class="partition-bar" id="part-1"></div>
+            <span class="partition-count" id="part-1-cnt">0</span>
+          </div>
+          <div class="partition-row">
+            <span class="partition-label">P2</span>
+            <div class="partition-bar" id="part-2"></div>
+            <span class="partition-count" id="part-2-cnt">0</span>
+          </div>
+        </div>
+        <div class="mini-stats" style="margin-top:8px;">
+          <div class="mini-stat">
+            <div class="label">Total Msgs</div>
+            <div class="val" id="kafka-total">0</div>
+          </div>
+          <div class="mini-stat">
+            <div class="label">Consumer Lag</div>
+            <div class="val" id="kafka-lag">0</div>
+          </div>
+          <div class="mini-stat">
+            <div class="label">Throughput</div>
+            <div class="val" id="kafka-throughput">0/s</div>
+          </div>
+          <div class="mini-stat">
+            <div class="label">Consumed</div>
+            <div class="val" id="kafka-consumed">0</div>
+          </div>
+        </div>
+        <div class="explanation-text kafka-expl">
+          Kafka acts as the event streaming and ingestion layer. It receives events from producers and stores them durably inside partitioned topics.
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Apache Spark ─── -->
+    <div class="component-card spark" id="card-spark">
+      <div class="card-header">
+        <div class="icon spark-icon">⚡</div>
+        <div class="title-group">
+          <h3>Apache Spark</h3>
+          <div class="role">Processing Layer</div>
+        </div>
+        <span class="status-label idle" id="status-spark">Idle</span>
+      </div>
+      <div class="card-body">
+        <div class="spark-stages" id="spark-stages">
+          <div class="spark-stage" id="stage-read"><span class="stage-dot"></span> Read Kafka</div>
+          <div class="spark-stage" id="stage-deser"><span class="stage-dot"></span> Deserialize JSON</div>
+          <div class="spark-stage" id="stage-validate"><span class="stage-dot"></span> Validate Records</div>
+          <div class="spark-stage" id="stage-dedup"><span class="stage-dot"></span> Remove Duplicates</div>
+          <div class="spark-stage" id="stage-transform"><span class="stage-dot"></span> Transform Data</div>
+          <div class="spark-stage" id="stage-agg"><span class="stage-dot"></span> Aggregate Metrics</div>
+        </div>
+        <div class="mini-stats" style="margin-top:10px;">
+          <div class="mini-stat">
+            <div class="label">Records Read</div>
+            <div class="val" id="spark-read">0</div>
+          </div>
+          <div class="mini-stat">
+            <div class="label">Valid</div>
+            <div class="val" id="spark-valid">0</div>
+          </div>
+          <div class="mini-stat">
+            <div class="label">Duplicates</div>
+            <div class="val" id="spark-dupes">0</div>
+          </div>
+          <div class="mini-stat">
+            <div class="label">Invalid</div>
+            <div class="val" id="spark-invalid">0</div>
+          </div>
+          <div class="mini-stat">
+            <div class="label">Latency</div>
+            <div class="val" id="spark-latency">0ms</div>
+          </div>
+          <div class="mini-stat">
+            <div class="label">Events/sec</div>
+            <div class="val" id="spark-eps">0</div>
+          </div>
+        </div>
+        <div class="explanation-text spark-expl">
+          Spark consumes events from Kafka and performs distributed transformations, validations, deduplication and aggregations.
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Apache Pinot ─── -->
+    <div class="component-card pinot" id="card-pinot">
+      <div class="card-header">
+        <div class="icon pinot-icon">◉</div>
+        <div class="title-group">
+          <h3>Apache Pinot</h3>
+          <div class="role">Real-Time Analytics</div>
+        </div>
+        <span class="status-label idle" id="status-pinot">Idle</span>
+      </div>
+      <div class="card-body">
+        <span class="path-badge realtime">⚡ Real-Time Serving</span>
+        <div style="margin:6px 0;">
+          <span class="tag realtime">Table: orders_realtime</span>
+          <span class="tag">Segments: <span id="pinot-segments">0</span></span>
+        </div>
+        <div class="mini-stats">
+          <div class="mini-stat">
+            <div class="label">Live Orders</div>
+            <div class="val" id="pinot-orders">0</div>
+          </div>
+          <div class="mini-stat">
+            <div class="label">Revenue</div>
+            <div class="val" id="pinot-revenue">₹0</div>
+          </div>
+          <div class="mini-stat">
+            <div class="label">Top Product</div>
+            <div class="val" id="pinot-top" style="font-size:0.75rem;">—</div>
+          </div>
+          <div class="mini-stat">
+            <div class="label">Query Latency</div>
+            <div class="val" id="pinot-qlat">0ms</div>
+          </div>
+        </div>
+        <div class="data-table-wrapper">
+          <table class="data-table" id="pinot-table">
+            <thead>
+              <tr>
+                <th>order_id</th><th>product</th><th>amount</th><th>status</th>
+              </tr>
+            </thead>
+            <tbody id="pinot-tbody"></tbody>
+          </table>
+        </div>
+        <div class="query-box" style="margin-top:10px;">
+          <pre>SELECT product, COUNT(*)
+FROM orders_realtime
+GROUP BY product
+ORDER BY COUNT(*) DESC;</pre>
+          <div class="query-actions">
+            <button class="btn info" style="font-size:0.72rem;padding:4px 10px;" onclick="runPinotQuery()">▶ Run Query</button>
+          </div>
+        </div>
+        <div class="query-results" id="pinot-query-results"></div>
+        <div class="explanation-text pinot-expl">
+          Apache Pinot is optimized for low-latency analytical queries on fresh streaming data. Used for real-time dashboards, user-facing analytics, fraud monitoring, and operational analytics.
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Apache Hive ─── -->
+    <div class="component-card hive" id="card-hive">
+      <div class="card-header">
+        <div class="icon hive-icon">🐝</div>
+        <div class="title-group">
+          <h3>Apache Hive</h3>
+          <div class="role">Batch / Historical</div>
+        </div>
+        <span class="status-label idle" id="status-hive">Idle</span>
+      </div>
+      <div class="card-body">
+        <span class="path-badge batch">📦 Batch / Historical Analytics</span>
+        <div style="margin:6px 0;">
+          <span class="tag batch">Table: orders_history</span>
+        </div>
+        <div class="hive-tree" id="hive-tree">
+          <div class="tree-root">📁 warehouse/orders/</div>
+          <div class="tree-item" id="hive-part-display" style="display:none;">
+            📂 year=2026/<br>
+            &nbsp;&nbsp;📂 month=08/<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;📄 day=24/
+          </div>
+        </div>
+        <div class="mini-stats" style="margin-top:8px;">
+          <div class="mini-stat">
+            <div class="label">Historical Records</div>
+            <div class="val" id="hive-records">0</div>
+          </div>
+          <div class="mini-stat">
+            <div class="label">Partitions</div>
+            <div class="val" id="hive-partitions">0</div>
+          </div>
+        </div>
+        <div class="data-table-wrapper">
+          <table class="data-table" id="hive-table">
+            <thead>
+              <tr>
+                <th>order_id</th><th>product</th><th>amount</th><th>status</th>
+              </tr>
+            </thead>
+            <tbody id="hive-tbody"></tbody>
+          </table>
+        </div>
+        <div class="query-box hive" style="margin-top:10px;">
+          <pre>SELECT product,
+       SUM(amount) AS revenue
+FROM orders_history
+WHERE year = 2026
+GROUP BY product;</pre>
+          <div class="query-actions">
+            <button class="btn" style="font-size:0.72rem;padding:4px 10px;border-color:var(--accent-hive);color:var(--accent-hive);" onclick="runHiveQuery()">▶ Run Batch Query</button>
+          </div>
+        </div>
+        <div class="query-results" id="hive-query-results"></div>
+        <div class="explanation-text hive-expl">
+          Hive is used for large-scale historical analytics and batch querying over data stored in the data lake.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       LOG PANEL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="log-panel">
+    <div class="log-header">📋 Pipeline Log</div>
+    <div class="log-body" id="log-body">
+      <div class="log-entry log-info"><span class="log-time">[--:--:--]</span> <span class="log-msg">Pipeline ready. Click "Execute Pipeline" to begin.</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       EVENT JOURNEY + FAILURE SIMULATION
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section-grid">
+    <!-- Event Journey -->
+    <div class="section-card">
+      <div class="sec-header">🔍 Event Journey</div>
+      <div class="sec-body">
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">Click an event to trace its journey through the pipeline:</p>
+        <div class="event-chips" id="event-chips">
+          <span style="font-size:0.75rem;color:var(--text-muted);">No events yet. Execute the pipeline first.</span>
+        </div>
+        <ul class="journey-list" id="journey-list" style="display:none;"></ul>
+      </div>
+    </div>
+    <!-- Failure Simulation -->
+    <div class="section-card">
+      <div class="sec-header">⚠️ Simulate Production Problem</div>
+      <div class="sec-body">
+        <div class="failure-grid">
+          <button class="failure-btn" id="fail-lag" onclick="simulateKafkaLag()">
+            <div class="f-title">📊 Kafka Consumer Lag</div>
+            <div class="f-desc">Messages build up, Spark consumes slower</div>
+          </button>
+          <button class="failure-btn" id="fail-slow" onclick="simulateSparkSlow()">
+            <div class="f-title">🐢 Spark Slow Processing</div>
+            <div class="f-desc">High latency, executor spill, slow events</div>
+          </button>
+          <button class="failure-btn" id="fail-dupe" onclick="injectDuplicate()">
+            <div class="f-title">⚡ Duplicate Events</div>
+            <div class="f-desc">Duplicate order_id values sent to Kafka</div>
+          </button>
+          <button class="failure-btn" id="fail-bad" onclick="injectBadRecord()">
+            <div class="f-title">⛔ Bad Schema</div>
+            <div class="f-desc">Event with incorrect datatype sent</div>
+          </button>
+        </div>
+        <div class="failure-status" id="failure-status"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       ARCHITECTURE EXPLANATION
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="arch-section">
+    <h2>🏗️ Architecture Explanation</h2>
+    <div class="arch-grid">
+      <div class="arch-card" style="border-left:3px solid var(--accent-kafka);">
+        <h4 style="color:var(--accent-kafka);">Apache Kafka</h4>
+        <div class="arch-role" style="color:var(--accent-kafka);">Role: Ingestion / Event Streaming</div>
+        <p>Kafka receives continuous events from applications and provides a scalable, durable buffer between producers and downstream consumers. It stores events in partitioned topics for fault-tolerant, ordered delivery.</p>
+      </div>
+      <div class="arch-card" style="border-left:3px solid var(--accent-spark);">
+        <h4 style="color:var(--accent-spark);">Apache Spark</h4>
+        <div class="arch-role" style="color:var(--accent-spark);">Role: Data Processing</div>
+        <p>Spark consumes Kafka events using Structured Streaming, cleans the data, validates records, performs transformations, removes duplicates, and creates aggregations for downstream systems.</p>
+      </div>
+      <div class="arch-card" style="border-left:3px solid var(--accent-pinot);">
+        <h4 style="color:var(--accent-pinot);">Apache Pinot</h4>
+        <div class="arch-role" style="color:var(--accent-pinot);">Role: Real-Time Analytics</div>
+        <p>Pinot stores fresh streaming data and provides very low-latency analytical queries for dashboards and operational analytics. It uses segment-based storage with columnar indexing for sub-second query performance.</p>
+      </div>
+      <div class="arch-card" style="border-left:3px solid var(--accent-hive);">
+        <h4 style="color:var(--accent-hive);">Apache Hive</h4>
+        <div class="arch-role" style="color:var(--accent-hive);">Role: Batch / Historical Analytics</div>
+        <p>Hive provides SQL-based analytics over large historical datasets stored in the data lake. It uses partition-based storage for efficient scanning of time-ranged queries over petabyte-scale data.</p>
+      </div>
+    </div>
+
+    <div class="key-message">
+      <div style="font-weight:700;margin-bottom:8px;font-size:0.9rem;">Key Architecture Summary</div>
+      <div class="km-item" style="color:var(--accent-kafka);">Kafka = Ingest</div>
+      <div class="km-item">•</div>
+      <div class="km-item" style="color:var(--accent-spark);">Spark = Process</div>
+      <div class="km-item">•</div>
+      <div class="km-item" style="color:var(--accent-pinot);">Pinot = Serve Real-Time</div>
+      <div class="km-item">•</div>
+      <div class="km-item" style="color:var(--accent-hive);">Hive = Serve Historical</div>
+    </div>
+
+    <div class="arch-paths" style="margin-top:16px;">
+      <div class="arch-path" style="border-left:3px solid var(--accent-pinot);">
+        <div class="path-label" style="color:var(--accent-pinot);">⚡ Fast Path</div>
+        <div class="path-flow">Kafka → Spark → Pinot → Real-Time Dashboard</div>
+      </div>
+      <div class="arch-path" style="border-left:3px solid var(--accent-hive);">
+        <div class="path-label" style="color:var(--accent-hive);">📦 Historical Path</div>
+        <div class="path-flow">Kafka → Spark → Hive → Batch Analytics</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Real-Time Data Engineering Pipeline Simulator &mdash; Built for learning &amp; interview preparation
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     JAVASCRIPT — PIPELINE SIMULATOR ENGINE
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<script>
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+const STATE = {
+  speed: 1,
+  paused: false,
+  running: false,
+  events: [],            // All generated events
+  kafkaPartitions: [[], [], []], // Messages per partition
+  kafkaConsumed: 0,
+  sparkRead: 0,
+  sparkValid: 0,
+  sparkDupes: 0,
+  sparkInvalid: 0,
+  pinotRecords: [],
+  hiveRecords: [],
+  pinotRevenue: 0,
+  productCounts: {},
+  consumerLag: 0,
+  sparkLatency: 45,
+  kafkaLagMode: false,
+  sparkSlowMode: false,
+  eventCounter: 1000,
+  customerCounter: 500,
+  batchRunning: false,
+  journeyData: {},       // event journey data keyed by order_id
+  timeouts: [],          // Track all timeouts so we can clear on reset
+};
+
+const PRODUCTS = ['iPhone', 'MacBook Pro', 'iPad Air', 'AirPods Pro', 'Apple Watch', 'Samsung Galaxy', 'Pixel Phone', 'Dell XPS', 'Sony WH-1000XM5', 'Nike Air Max'];
+const STATUSES = ['PLACED', 'CONFIRMED', 'SHIPPED', 'DELIVERED'];
+const EVENT_TYPES = ['Order Created', 'Payment Completed', 'Product Viewed', 'Order Shipped'];
+const SOURCES = ['E-commerce App', 'Mobile App', 'Payment Service', 'Website Events'];
+const SOURCE_IDS = ['prod-ecom', 'prod-mobile', 'prod-payment', 'prod-website'];
+
+// ═══════════════════════════════════════════════════════════
+// UTILITY FUNCTIONS
+// ═══════════════════════════════════════════════════════════
+function now() {
+  const d = new Date();
+  return d.toTimeString().slice(0, 8);
+}
+
+function delay(ms) {
+  return new Promise(resolve => {
+    const id = setTimeout(resolve, ms / STATE.speed);
+    STATE.timeouts.push(id);
+  });
+}
+
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function formatCurrency(n) {
+  if (n >= 10000000) return '₹' + (n / 10000000).toFixed(1) + 'Cr';
+  if (n >= 100000) return '₹' + (n / 100000).toFixed(1) + 'L';
+  if (n >= 1000) return '₹' + (n / 1000).toFixed(1) + 'K';
+  return '₹' + n;
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOGGING
+// ═══════════════════════════════════════════════════════════
+function addLog(msg, level = 'info') {
+  const logBody = document.getElementById('log-body');
+  const entry = document.createElement('div');
+  entry.className = `log-entry log-${level}`;
+  entry.innerHTML = `<span class="log-time">[${now()}]</span> <span class="log-msg">${msg}</span>`;
+  logBody.appendChild(entry);
+  logBody.scrollTop = logBody.scrollHeight;
+  // Keep last 100 entries
+  while (logBody.children.length > 100) logBody.removeChild(logBody.firstChild);
+}
+
+// ═══════════════════════════════════════════════════════════
+// UI UPDATES
+// ═══════════════════════════════════════════════════════════
+function updateCounters() {
+  document.getElementById('val-generated').textContent = STATE.events.length;
+  const kafkaTotal = STATE.kafkaPartitions.reduce((s, p) => s + p.length, 0);
+  document.getElementById('val-kafka').textContent = kafkaTotal;
+  document.getElementById('val-spark').textContent = STATE.sparkValid + STATE.sparkInvalid + STATE.sparkDupes;
+  document.getElementById('val-pinot').textContent = STATE.pinotRecords.length;
+  document.getElementById('val-hive').textContent = STATE.hiveRecords.length;
+  document.getElementById('val-latency').textContent = STATE.sparkLatency + 'ms';
+
+  document.getElementById('src-sent').textContent = STATE.events.length;
+  document.getElementById('kafka-total').textContent = kafkaTotal;
+  document.getElementById('kafka-lag').textContent = STATE.consumerLag;
+  document.getElementById('kafka-consumed').textContent = STATE.kafkaConsumed;
+  document.getElementById('spark-read').textContent = STATE.sparkRead;
+  document.getElementById('spark-valid').textContent = STATE.sparkValid;
+  document.getElementById('spark-dupes').textContent = STATE.sparkDupes;
+  document.getElementById('spark-invalid').textContent = STATE.sparkInvalid;
+  document.getElementById('spark-latency').textContent = STATE.sparkLatency + 'ms';
+  document.getElementById('pinot-orders').textContent = STATE.pinotRecords.length;
+  document.getElementById('pinot-revenue').textContent = formatCurrency(STATE.pinotRevenue);
+  document.getElementById('hive-records').textContent = STATE.hiveRecords.length;
+  document.getElementById('hive-partitions').textContent = STATE.hiveRecords.length > 0 ? 1 : 0;
+
+  // Pinot top product
+  let topProd = '—';
+  let topCnt = 0;
+  for (const [p, c] of Object.entries(STATE.productCounts)) {
+    if (c > topCnt) { topCnt = c; topProd = p; }
+  }
+  document.getElementById('pinot-top').textContent = topProd;
+  document.getElementById('pinot-qlat').textContent = rand(15, 50) + 'ms';
+  document.getElementById('pinot-segments').textContent = Math.ceil(STATE.pinotRecords.length / 5) || 0;
+
+  // Kafka partitions visual
+  for (let i = 0; i < 3; i++) {
+    document.getElementById(`part-${i}-cnt`).textContent = STATE.kafkaPartitions[i].length;
+    const bar = document.getElementById(`part-${i}`);
+    // Keep last 12 messages visible
+    const msgs = STATE.kafkaPartitions[i].slice(-12);
+    bar.innerHTML = msgs.map(m => `<div class="partition-msg" title="${m.order_id}">${m.order_id.slice(-2)}</div>`).join('');
+  }
+}
+
+function setStatus(component, status, label) {
+  const el = document.getElementById(`status-${component}`);
+  el.className = `status-label ${status}`;
+  el.textContent = label || status.charAt(0).toUpperCase() + status.slice(1);
+  const card = document.getElementById(`card-${component}`);
+  if (status === 'active') {
+    card.classList.add('active');
+  } else {
+    card.classList.remove('active');
+  }
+}
+
+function setSparkStage(stageId, state) {
+  const el = document.getElementById(stageId);
+  el.className = `spark-stage ${state}`;
+}
+
+function resetSparkStages() {
+  ['stage-read', 'stage-deser', 'stage-validate', 'stage-dedup', 'stage-transform', 'stage-agg'].forEach(id => {
+    setSparkStage(id, '');
+  });
+}
+
+function addPinotRow(record) {
+  const tbody = document.getElementById('pinot-tbody');
+  const tr = document.createElement('tr');
+  tr.className = 'new-row';
+  tr.innerHTML = `<td>${record.order_id}</td><td>${record.product}</td><td>₹${record.amount.toLocaleString()}</td><td>${record.status}</td>`;
+  tbody.insertBefore(tr, tbody.firstChild);
+  // Keep last 8 rows
+  while (tbody.children.length > 8) tbody.removeChild(tbody.lastChild);
+}
+
+function addHiveRow(record) {
+  const tbody = document.getElementById('hive-tbody');
+  const tr = document.createElement('tr');
+  tr.className = 'new-row';
+  tr.innerHTML = `<td>${record.order_id}</td><td>${record.product}</td><td>₹${record.amount.toLocaleString()}</td><td>${record.status}</td>`;
+  tbody.insertBefore(tr, tbody.firstChild);
+  while (tbody.children.length > 8) tbody.removeChild(tbody.lastChild);
+  document.getElementById('hive-part-display').style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════════════════
+// EVENT GENERATION
+// ═══════════════════════════════════════════════════════════
+function createEvent(opts = {}) {
+  STATE.eventCounter++;
+  const orderId = opts.orderId || `ORD-${STATE.eventCounter}`;
+  const customerId = `CUST-${rand(STATE.customerCounter, STATE.customerCounter + 100)}`;
+  const product = opts.product || pick(PRODUCTS);
+  const amount = opts.amount || rand(999, 149999);
+  const status = opts.status || pick(STATUSES);
+  const source = pick(SOURCES);
+  const sourceId = SOURCE_IDS[SOURCES.indexOf(source)];
+  const isDuplicate = opts.isDuplicate || false;
+  const isBad = opts.isBad || false;
+
+  const event = {
+    order_id: orderId,
+    customer_id: customerId,
+    product: product,
+    amount: isBad ? 'INVALID' : amount,
+    status: status,
+    timestamp: new Date().toISOString().slice(0, 19),
+    source: source,
+    sourceId: sourceId,
+    isDuplicate: isDuplicate,
+    isBad: isBad,
+    processing_status: null,
+  };
+
+  STATE.events.push(event);
+  return event;
+}
+
+function generateBatch(count = 15) {
+  const events = [];
+  for (let i = 0; i < count; i++) {
+    events.push(createEvent());
+  }
+  // Inject 2 duplicates
+  if (events.length > 3) {
+    events.push(createEvent({ orderId: events[1].order_id, product: events[1].product, amount: events[1].amount, isDuplicate: true }));
+    events.push(createEvent({ orderId: events[4].order_id, product: events[4].product, amount: events[4].amount, isDuplicate: true }));
+  }
+  // Inject 1 bad record
+  events.push(createEvent({ isBad: true }));
+  return events;
+}
+
+// ═══════════════════════════════════════════════════════════
+// EVENT JOURNEY TRACKING
+// ═══════════════════════════════════════════════════════════
+function journeyStep(orderId, step) {
+  if (!STATE.journeyData[orderId]) STATE.journeyData[orderId] = [];
+  STATE.journeyData[orderId].push({ time: now(), ...step });
+}
+
+function renderEventChips() {
+  const container = document.getElementById('event-chips');
+  // Show unique order_ids from valid processed events (max 12)
+  const ids = [...new Set(STATE.pinotRecords.map(r => r.order_id))].slice(0, 12);
+  if (ids.length === 0) {
+    container.innerHTML = '<span style="font-size:0.75rem;color:var(--text-muted);">No events yet. Execute the pipeline first.</span>';
+    return;
+  }
+  container.innerHTML = ids.map(id =>
+    `<span class="event-chip" onclick="showJourney('${id}')">${id}</span>`
+  ).join('');
+}
+
+function showJourney(orderId) {
+  // Highlight chip
+  document.querySelectorAll('.event-chip').forEach(c => c.classList.remove('selected'));
+  const chips = document.querySelectorAll('.event-chip');
+  chips.forEach(c => { if (c.textContent === orderId) c.classList.add('selected'); });
+
+  const list = document.getElementById('journey-list');
+  list.style.display = 'block';
+  const journey = STATE.journeyData[orderId];
+  if (!journey || journey.length === 0) {
+    list.innerHTML = '<li class="journey-item"><div class="desc">No journey data for this event.</div></li>';
+    return;
+  }
+  list.innerHTML = journey.map(step => `
+    <li class="journey-item step-${step.component}">
+      <div class="time">${step.time}</div>
+      <div class="desc">${step.description}</div>
+      ${step.meta ? `<div class="meta">${step.meta}</div>` : ''}
+    </li>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// SPEED CONTROL
+// ═══════════════════════════════════════════════════════════
+function setSpeed(s) {
+  STATE.speed = s;
+  document.querySelectorAll('.speed-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.trim() === s + '×');
+  });
+  addLog(`Speed set to ${s}×`, 'info');
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAUSE / RESUME
+// ═══════════════════════════════════════════════════════════
+function togglePause() {
+  STATE.paused = !STATE.paused;
+  const btn = document.getElementById('btn-pause');
+  btn.textContent = STATE.paused ? '▶ Resume' : '⏸ Pause';
+  addLog(STATE.paused ? 'Pipeline paused' : 'Pipeline resumed', 'warn');
+}
+
+async function waitWhilePaused() {
+  while (STATE.paused) {
+    await new Promise(r => setTimeout(r, 100));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// RESET
+// ═══════════════════════════════════════════════════════════
+function resetPipeline() {
+  // Clear all timeouts
+  STATE.timeouts.forEach(id => clearTimeout(id));
+  STATE.timeouts = [];
+  STATE.running = false;
+  STATE.paused = false;
+  STATE.batchRunning = false;
+  STATE.events = [];
+  STATE.kafkaPartitions = [[], [], []];
+  STATE.kafkaConsumed = 0;
+  STATE.sparkRead = 0;
+  STATE.sparkValid = 0;
+  STATE.sparkDupes = 0;
+  STATE.sparkInvalid = 0;
+  STATE.pinotRecords = [];
+  STATE.hiveRecords = [];
+  STATE.pinotRevenue = 0;
+  STATE.productCounts = {};
+  STATE.consumerLag = 0;
+  STATE.sparkLatency = 45;
+  STATE.kafkaLagMode = false;
+  STATE.sparkSlowMode = false;
+  STATE.eventCounter = 1000;
+  STATE.journeyData = {};
+
+  // Reset UI
+  updateCounters();
+  setStatus('sources', 'idle', 'Idle');
+  setStatus('kafka', 'idle', 'Idle');
+  setStatus('spark', 'idle', 'Idle');
+  setStatus('pinot', 'idle', 'Idle');
+  setStatus('hive', 'idle', 'Idle');
+  resetSparkStages();
+
+  document.getElementById('src-rate').textContent = '0';
+  document.getElementById('kafka-throughput').textContent = '0/s';
+  document.getElementById('spark-eps').textContent = '0';
+
+  // Clear tables
+  document.getElementById('pinot-tbody').innerHTML = '';
+  document.getElementById('hive-tbody').innerHTML = '';
+  document.getElementById('hive-part-display').style.display = 'none';
+
+  // Clear producers
+  SOURCE_IDS.forEach(id => document.getElementById(id).classList.remove('sending'));
+
+  // Reset buttons
+  document.getElementById('btn-execute').disabled = false;
+  document.getElementById('btn-pause').disabled = true;
+  document.getElementById('btn-pause').textContent = '⏸ Pause';
+
+  // Clear query results
+  document.getElementById('pinot-query-results').classList.remove('visible');
+  document.getElementById('hive-query-results').classList.remove('visible');
+
+  // Clear event chips
+  renderEventChips();
+  document.getElementById('journey-list').style.display = 'none';
+
+  // Clear failure status
+  document.getElementById('failure-status').classList.remove('visible');
+  document.querySelectorAll('.failure-btn').forEach(b => b.classList.remove('active'));
+
+  // Clear log
+  document.getElementById('log-body').innerHTML = '<div class="log-entry log-info"><span class="log-time">[' + now() + ']</span> <span class="log-msg">Pipeline reset. Ready to execute.</span></div>';
+
+  addLog('Pipeline reset complete', 'success');
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN PIPELINE EXECUTION
+// ═══════════════════════════════════════════════════════════
+async function executePipeline() {
+  if (STATE.running) return;
+  STATE.running = true;
+  STATE.batchRunning = true;
+  document.getElementById('btn-execute').disabled = true;
+  document.getElementById('btn-pause').disabled = false;
+
+  addLog('🚀 Pipeline execution started', 'success');
+
+  // ─── STEP 1: Generate Events ───
+  addLog('Step 1: Generating e-commerce events...', 'info');
+  setStatus('sources', 'active', 'Generating');
+
+  const events = generateBatch(15);
+  const totalEvents = events.length;
+
+  // Animate producers sending
+  for (let i = 0; i < events.length; i++) {
+    await waitWhilePaused();
+    if (!STATE.batchRunning) return;
+
+    const event = events[i];
+    const srcEl = document.getElementById(event.sourceId);
+    srcEl.classList.add('sending');
+
+    journeyStep(event.order_id, {
+      component: 'sources',
+      description: `Event generated by ${event.source}`,
+      meta: `order_id: ${event.order_id} | product: ${event.product} | amount: ${typeof event.amount === 'number' ? '₹' + event.amount.toLocaleString() : event.amount}`
+    });
+
+    document.getElementById('src-rate').textContent = Math.round((i + 1) / ((i + 1) * 0.15));
+    updateCounters();
+    await delay(80);
+    srcEl.classList.remove('sending');
+  }
+
+  addLog(`✅ Events Generated: ${totalEvents}`, 'success');
+  setStatus('sources', 'idle', 'Done');
+
+  await delay(300);
+
+  // ─── STEP 2: Kafka Ingestion ───
+  addLog('Step 2: Ingesting events into Kafka...', 'info');
+  setStatus('kafka', 'active', 'Ingesting');
+
+  for (let i = 0; i < events.length; i++) {
+    await waitWhilePaused();
+    if (!STATE.batchRunning) return;
+
+    const event = events[i];
+    const partition = i % 3;
+    STATE.kafkaPartitions[partition].push(event);
+
+    journeyStep(event.order_id, {
+      component: 'kafka',
+      description: 'Kafka received event',
+      meta: `Topic: orders-events | Partition: ${partition} | Offset: ${STATE.kafkaPartitions[partition].length - 1}`
+    });
+
+    STATE.consumerLag++;
+    document.getElementById('kafka-throughput').textContent = Math.round((i + 1) / ((i + 1) * 0.1)) + '/s';
+    updateCounters();
+    await delay(60);
+  }
+
+  addLog(`✅ Kafka: ${totalEvents} messages across 3 partitions (P0: ${STATE.kafkaPartitions[0].length}, P1: ${STATE.kafkaPartitions[1].length}, P2: ${STATE.kafkaPartitions[2].length})`, 'success');
+
+  await delay(300);
+
+  // ─── STEP 3: Spark Processing ───
+  addLog('Step 3: Spark Structured Streaming processing...', 'info');
+  setStatus('spark', 'active', 'Processing');
+
+  const stages = ['stage-read', 'stage-deser', 'stage-validate', 'stage-dedup', 'stage-transform', 'stage-agg'];
+  const stageLabels = ['Consuming Kafka events...', 'Parsing JSON...', 'Validating schema...', 'Removing duplicates...', 'Applying transformations...', 'Creating aggregations...'];
+
+  // Process each stage
+  for (let s = 0; s < stages.length; s++) {
+    await waitWhilePaused();
+    if (!STATE.batchRunning) return;
+
+    setSparkStage(stages[s], 'active');
+    addLog(stageLabels[s], 'info');
+    await delay(STATE.sparkSlowMode ? 800 : 350);
+    setSparkStage(stages[s], 'done');
+  }
+
+  // Now process individual events
+  const allKafkaEvents = [...STATE.kafkaPartitions[0], ...STATE.kafkaPartitions[1], ...STATE.kafkaPartitions[2]];
+  const seenOrderIds = new Set();
+  const validRecords = [];
+
+  for (const event of allKafkaEvents) {
+    await waitWhilePaused();
+    if (!STATE.batchRunning) return;
+
+    STATE.sparkRead++;
+    STATE.kafkaConsumed++;
+    STATE.consumerLag = Math.max(0, STATE.consumerLag - 1);
+
+    if (event.isBad) {
+      STATE.sparkInvalid++;
+      event.processing_status = 'INVALID';
+      addLog(`⛔ Invalid record rejected: ${event.order_id} (amount: "${event.amount}")`, 'error');
+      journeyStep(event.order_id, {
+        component: 'spark',
+        description: 'Spark rejected event — invalid schema',
+        meta: `Validation: FAILED | Reason: amount field is not a number`
+      });
+    } else if (event.isDuplicate && seenOrderIds.has(event.order_id)) {
+      STATE.sparkDupes++;
+      event.processing_status = 'DUPLICATE';
+      addLog(`⚡ Duplicate removed: ${event.order_id}`, 'warn');
+      journeyStep(event.order_id, {
+        component: 'spark',
+        description: 'Spark detected duplicate — removed',
+        meta: `Deduplication: order_id ${event.order_id} already processed`
+      });
+    } else {
+      seenOrderIds.add(event.order_id);
+      STATE.sparkValid++;
+      event.processing_status = 'VALID';
+      validRecords.push(event);
+      journeyStep(event.order_id, {
+        component: 'spark',
+        description: 'Spark processed event successfully',
+        meta: `Validation: PASSED | Transformation: COMPLETED | processing_status: VALID`
+      });
+    }
+
+    STATE.sparkLatency = STATE.sparkSlowMode ? rand(3000, 8400) : rand(30, 85);
+    document.getElementById('spark-eps').textContent = Math.round(STATE.sparkRead / Math.max(1, STATE.sparkRead * 0.08));
+    updateCounters();
+    await delay(STATE.sparkSlowMode ? 200 : 50);
+  }
+
+  addLog(`✅ Spark: Read ${STATE.sparkRead}, Valid ${STATE.sparkValid}, Duplicates ${STATE.sparkDupes}, Invalid ${STATE.sparkInvalid}`, 'success');
+
+  await delay(300);
+
+  // ─── STEP 4: Route Data (Fork) ───
+  addLog('Step 4: Routing processed data → Pinot (real-time) + Hive (batch)...', 'info');
+
+  setStatus('pinot', 'active', 'Ingesting');
+  setStatus('hive', 'active', 'Writing');
+
+  // ─── STEP 5 & 6: Write to Pinot and Hive simultaneously ───
+  for (const record of validRecords) {
+    await waitWhilePaused();
+    if (!STATE.batchRunning) return;
+
+    // Pinot
+    STATE.pinotRecords.push(record);
+    STATE.pinotRevenue += record.amount;
+    STATE.productCounts[record.product] = (STATE.productCounts[record.product] || 0) + 1;
+    addPinotRow(record);
+
+    journeyStep(record.order_id, {
+      component: 'pinot',
+      description: 'Written to Pinot real-time table',
+      meta: `Table: orders_realtime | Segment: seg_${Math.ceil(STATE.pinotRecords.length / 5)}`
+    });
+
+    // Hive
+    STATE.hiveRecords.push(record);
+    addHiveRow(record);
+
+    journeyStep(record.order_id, {
+      component: 'hive',
+      description: 'Written to Hive partitioned table',
+      meta: `Table: orders_history | Partition: year=2026/month=08/day=24`
+    });
+
+    updateCounters();
+    await delay(60);
+  }
+
+  addLog(`✅ Pinot: ${STATE.pinotRecords.length} records ingested into orders_realtime`, 'success');
+  addLog(`✅ Hive: ${STATE.hiveRecords.length} records written to orders_history (year=2026/month=08/day=24)`, 'success');
+
+  setStatus('pinot', 'active', 'Serving');
+  setStatus('hive', 'idle', 'Stored');
+  setStatus('spark', 'idle', 'Done');
+  setStatus('kafka', 'idle', 'Done');
+
+  // Update event chips
+  renderEventChips();
+
+  addLog('🎉 Pipeline execution complete!', 'success');
+  STATE.running = false;
+  STATE.batchRunning = false;
+  document.getElementById('btn-execute').disabled = false;
+  document.getElementById('btn-pause').disabled = true;
+}
+
+// ═══════════════════════════════════════════════════════════
+// SINGLE EVENT GENERATION (flows through entire pipeline)
+// ═══════════════════════════════════════════════════════════
+async function generateSingleEvent() {
+  const event = createEvent();
+  addLog(`+ Event generated: ${event.order_id} (${event.product}, ₹${event.amount.toLocaleString()})`, 'info');
+
+  journeyStep(event.order_id, {
+    component: 'sources',
+    description: `Event generated by ${event.source}`,
+    meta: `order_id: ${event.order_id} | product: ${event.product} | amount: ₹${event.amount.toLocaleString()}`
+  });
+
+  // Activate source
+  setStatus('sources', 'active', 'Sending');
+  const srcEl = document.getElementById(event.sourceId);
+  srcEl.classList.add('sending');
+  updateCounters();
+  await delay(200);
+  srcEl.classList.remove('sending');
+  setStatus('sources', 'idle', 'Done');
+
+  // Kafka
+  setStatus('kafka', 'active', 'Receiving');
+  const partition = rand(0, 2);
+  STATE.kafkaPartitions[partition].push(event);
+  STATE.consumerLag++;
+
+  journeyStep(event.order_id, {
+    component: 'kafka',
+    description: 'Kafka received event',
+    meta: `Topic: orders-events | Partition: ${partition} | Offset: ${STATE.kafkaPartitions[partition].length - 1}`
+  });
+
+  updateCounters();
+  addLog(`Kafka: ${event.order_id} → Partition ${partition}`, 'info');
+  await delay(200);
+  setStatus('kafka', 'idle', 'Ready');
+
+  // Spark
+  setStatus('spark', 'active', 'Processing');
+  STATE.sparkRead++;
+  STATE.kafkaConsumed++;
+  STATE.consumerLag = Math.max(0, STATE.consumerLag - 1);
+
+  const seenIds = new Set(STATE.pinotRecords.map(r => r.order_id));
+  if (event.isDuplicate && seenIds.has(event.order_id)) {
+    STATE.sparkDupes++;
+    event.processing_status = 'DUPLICATE';
+    addLog(`⚡ Spark: Duplicate removed — ${event.order_id}`, 'warn');
+    journeyStep(event.order_id, { component: 'spark', description: 'Spark detected duplicate — removed', meta: `Deduplication applied` });
+  } else if (event.isBad) {
+    STATE.sparkInvalid++;
+    event.processing_status = 'INVALID';
+    addLog(`⛔ Spark: Invalid record — ${event.order_id}`, 'error');
+    journeyStep(event.order_id, { component: 'spark', description: 'Spark rejected event', meta: `Validation: FAILED` });
+  } else {
+    STATE.sparkValid++;
+    event.processing_status = 'VALID';
+
+    journeyStep(event.order_id, { component: 'spark', description: 'Spark processed successfully', meta: `Validation: PASSED | Transformation: COMPLETED` });
+
+    // Write to Pinot & Hive
+    STATE.pinotRecords.push(event);
+    STATE.pinotRevenue += event.amount;
+    STATE.productCounts[event.product] = (STATE.productCounts[event.product] || 0) + 1;
+    addPinotRow(event);
+    journeyStep(event.order_id, { component: 'pinot', description: 'Written to Pinot', meta: `Table: orders_realtime` });
+
+    STATE.hiveRecords.push(event);
+    addHiveRow(event);
+    journeyStep(event.order_id, { component: 'hive', description: 'Written to Hive', meta: `Partition: year=2026/month=08/day=24` });
+
+    addLog(`✅ ${event.order_id} → Pinot + Hive`, 'success');
+    setStatus('pinot', 'active', 'Serving');
+    setStatus('hive', 'active', 'Writing');
+  }
+
+  STATE.sparkLatency = rand(30, 85);
+  updateCounters();
+  renderEventChips();
+  await delay(300);
+  setStatus('spark', 'idle', 'Ready');
+  setStatus('hive', 'idle', 'Stored');
+}
+
+// ═══════════════════════════════════════════════════════════
+// INJECT DUPLICATE
+// ═══════════════════════════════════════════════════════════
+async function injectDuplicate() {
+  // Pick a random existing valid event to duplicate
+  if (STATE.pinotRecords.length === 0) {
+    addLog('⚠️ No events to duplicate. Generate events first.', 'warn');
+    return;
+  }
+  const original = pick(STATE.pinotRecords);
+  addLog(`⚡ Injecting duplicate event: ${original.order_id}`, 'warn');
+
+  const failStatus = document.getElementById('failure-status');
+  failStatus.textContent = `Duplicate Injected: ${original.order_id} — Spark deduplication will catch this.`;
+  failStatus.classList.add('visible');
+  document.getElementById('fail-dupe').classList.add('active');
+  setTimeout(() => { document.getElementById('fail-dupe').classList.remove('active'); }, 3000);
+
+  const event = createEvent({ orderId: original.order_id, product: original.product, amount: original.amount, isDuplicate: true });
+  await processEventThroughPipeline(event);
+}
+
+// ═══════════════════════════════════════════════════════════
+// INJECT BAD RECORD
+// ═══════════════════════════════════════════════════════════
+async function injectBadRecord() {
+  addLog('⛔ Injecting bad schema event (amount: "INVALID")...', 'error');
+
+  const failStatus = document.getElementById('failure-status');
+  failStatus.innerHTML = `Bad Schema Injected: <code>{ "amount": "INVALID" }</code> — Spark will reject this record.`;
+  failStatus.classList.add('visible');
+  document.getElementById('fail-bad').classList.add('active');
+  setTimeout(() => { document.getElementById('fail-bad').classList.remove('active'); }, 3000);
+
+  const event = createEvent({ isBad: true });
+  await processEventThroughPipeline(event);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROCESS SINGLE EVENT THROUGH PIPELINE (shared logic)
+// ═══════════════════════════════════════════════════════════
+async function processEventThroughPipeline(event) {
+  journeyStep(event.order_id, {
+    component: 'sources',
+    description: `Event generated by ${event.source}`,
+    meta: `order_id: ${event.order_id} | ${event.isBad ? 'amount: "INVALID"' : 'product: ' + event.product}`
+  });
+
+  setStatus('sources', 'active', 'Sending');
+  updateCounters();
+  await delay(150);
+  setStatus('sources', 'idle', 'Done');
+
+  // Kafka
+  setStatus('kafka', 'active', 'Receiving');
+  const partition = rand(0, 2);
+  STATE.kafkaPartitions[partition].push(event);
+  STATE.consumerLag++;
+  journeyStep(event.order_id, { component: 'kafka', description: 'Kafka received event', meta: `Partition: ${partition}` });
+  updateCounters();
+  await delay(150);
+
+  // Spark
+  setStatus('spark', 'active', 'Processing');
+  STATE.sparkRead++;
+  STATE.kafkaConsumed++;
+  STATE.consumerLag = Math.max(0, STATE.consumerLag - 1);
+
+  const seenIds = new Set(STATE.pinotRecords.map(r => r.order_id));
+
+  if (event.isBad) {
+    STATE.sparkInvalid++;
+    event.processing_status = 'INVALID';
+    addLog(`⛔ Spark rejected: ${event.order_id} — bad schema (amount: "INVALID")`, 'error');
+    journeyStep(event.order_id, { component: 'spark', description: 'Spark rejected — invalid schema', meta: `amount field is not a number` });
+  } else if (event.isDuplicate && seenIds.has(event.order_id)) {
+    STATE.sparkDupes++;
+    event.processing_status = 'DUPLICATE';
+    addLog(`⚡ Spark deduplication: ${event.order_id} removed`, 'warn');
+    journeyStep(event.order_id, { component: 'spark', description: 'Duplicate detected and removed', meta: `order_id already exists in output` });
+  } else {
+    STATE.sparkValid++;
+    event.processing_status = 'VALID';
+    journeyStep(event.order_id, { component: 'spark', description: 'Spark processed successfully', meta: `processing_status: VALID` });
+
+    // Write to both sinks
+    STATE.pinotRecords.push(event);
+    STATE.pinotRevenue += event.amount;
+    STATE.productCounts[event.product] = (STATE.productCounts[event.product] || 0) + 1;
+    addPinotRow(event);
+    journeyStep(event.order_id, { component: 'pinot', description: 'Written to Pinot', meta: `Table: orders_realtime` });
+
+    STATE.hiveRecords.push(event);
+    addHiveRow(event);
+    journeyStep(event.order_id, { component: 'hive', description: 'Written to Hive', meta: `Partition: year=2026/month=08/day=24` });
+
+    setStatus('pinot', 'active', 'Serving');
+    setStatus('hive', 'active', 'Writing');
+    addLog(`✅ ${event.order_id} → Pinot + Hive`, 'success');
+  }
+
+  updateCounters();
+  renderEventChips();
+  await delay(300);
+  setStatus('kafka', 'idle', 'Ready');
+  setStatus('spark', 'idle', 'Ready');
+  setStatus('hive', 'idle', 'Stored');
+}
+
+// ═══════════════════════════════════════════════════════════
+// SIMULATE KAFKA LAG
+// ═══════════════════════════════════════════════════════════
+async function simulateKafkaLag() {
+  STATE.kafkaLagMode = !STATE.kafkaLagMode;
+  const failStatus = document.getElementById('failure-status');
+  const btn = document.getElementById('fail-lag');
+
+  if (STATE.kafkaLagMode) {
+    btn.classList.add('active');
+    addLog('📊 Simulating Kafka Consumer Lag — messages building up...', 'warn');
+
+    // Add a burst of messages to Kafka without consuming
+    const lagEvents = [];
+    for (let i = 0; i < 20; i++) {
+      const event = createEvent();
+      const partition = i % 3;
+      STATE.kafkaPartitions[partition].push(event);
+      STATE.consumerLag++;
+      lagEvents.push(event);
+    }
+
+    setStatus('kafka', 'warning', 'Lag: ' + STATE.consumerLag);
+    failStatus.innerHTML = `<strong>Kafka Consumer Lag:</strong> ${STATE.consumerLag} messages backed up.<br>
+      <em>Consumer lag happens when consumers (Spark) cannot keep up with the rate of incoming messages.
+      This can be caused by slow processing, insufficient consumer instances, or network issues.
+      Monitor lag using Kafka consumer group commands and scale consumers or optimize processing.</em>`;
+    failStatus.classList.add('visible');
+    updateCounters();
+  } else {
+    btn.classList.remove('active');
+    failStatus.classList.remove('visible');
+    addLog('Kafka lag simulation ended', 'info');
+    setStatus('kafka', 'idle', 'Ready');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SIMULATE SPARK SLOWDOWN
+// ═══════════════════════════════════════════════════════════
+function simulateSparkSlow() {
+  STATE.sparkSlowMode = !STATE.sparkSlowMode;
+  const failStatus = document.getElementById('failure-status');
+  const btn = document.getElementById('fail-slow');
+
+  if (STATE.sparkSlowMode) {
+    btn.classList.add('active');
+    STATE.sparkLatency = rand(3000, 8400);
+    setStatus('spark', 'warning', 'Slow');
+    addLog('🐢 Simulating Spark slow processing — high latency, executor spill...', 'warn');
+    failStatus.innerHTML = `<strong>Spark Slow Processing:</strong><br>
+      Processing Latency: ${STATE.sparkLatency}ms | Executor Spill: ${(Math.random() * 2 + 0.5).toFixed(1)} GB<br>
+      <em>Slow Spark processing can be caused by data skew, insufficient executor memory causing disk spill,
+      large shuffle operations, or inefficient transformations. Solutions include repartitioning data,
+      increasing executor memory, and optimizing join strategies.</em>`;
+    failStatus.classList.add('visible');
+    updateCounters();
+  } else {
+    btn.classList.remove('active');
+    STATE.sparkSlowMode = false;
+    STATE.sparkLatency = rand(30, 85);
+    failStatus.classList.remove('visible');
+    setStatus('spark', 'idle', 'Ready');
+    addLog('Spark slowdown simulation ended', 'info');
+    updateCounters();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// QUERIES
+// ═══════════════════════════════════════════════════════════
+function runPinotQuery() {
+  const resultsDiv = document.getElementById('pinot-query-results');
+  if (STATE.pinotRecords.length === 0) {
+    resultsDiv.innerHTML = '<div style="color:var(--text-muted);font-size:0.75rem;">No data yet. Execute the pipeline first.</div>';
+    resultsDiv.classList.add('visible');
+    return;
+  }
+
+  // Aggregate by product
+  const agg = {};
+  STATE.pinotRecords.forEach(r => {
+    agg[r.product] = (agg[r.product] || 0) + 1;
+  });
+  const sorted = Object.entries(agg).sort((a, b) => b[1] - a[1]);
+
+  let html = `<div style="color:var(--accent-pinot);font-weight:700;margin-bottom:6px;">Query Results (${rand(15,50)}ms)</div>`;
+  html += '<table class="data-table"><thead><tr><th>product</th><th>COUNT(*)</th></tr></thead><tbody>';
+  sorted.forEach(([product, count]) => {
+    html += `<tr><td>${product}</td><td>${count}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  resultsDiv.innerHTML = html;
+  resultsDiv.classList.add('visible');
+  addLog('Pinot query executed: SELECT product, COUNT(*) ... ORDER BY COUNT(*) DESC', 'info');
+}
+
+function runHiveQuery() {
+  const resultsDiv = document.getElementById('hive-query-results');
+  if (STATE.hiveRecords.length === 0) {
+    resultsDiv.innerHTML = '<div style="color:var(--text-muted);font-size:0.75rem;">No data yet. Execute the pipeline first.</div>';
+    resultsDiv.classList.add('visible');
+    return;
+  }
+
+  // Aggregate revenue by product
+  const agg = {};
+  STATE.hiveRecords.forEach(r => {
+    agg[r.product] = (agg[r.product] || 0) + r.amount;
+  });
+  const sorted = Object.entries(agg).sort((a, b) => b[1] - a[1]);
+
+  let html = `<div style="color:var(--accent-hive);font-weight:700;margin-bottom:6px;">Batch Query Results (${rand(2,8)}.${rand(1,9)}s)</div>`;
+  html += '<table class="data-table"><thead><tr><th>product</th><th>revenue</th></tr></thead><tbody>';
+  sorted.forEach(([product, revenue]) => {
+    html += `<tr><td>${product}</td><td>₹${revenue.toLocaleString()}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  html += `<div style="margin-top:6px;font-size:0.7rem;color:var(--text-muted);">Scanned ${STATE.hiveRecords.length} records from partition year=2026/month=08/day=24</div>`;
+  resultsDiv.innerHTML = html;
+  resultsDiv.classList.add('visible');
+  addLog('Hive batch query executed: SELECT product, SUM(amount) ... WHERE year=2026', 'info');
+}
+
+// ═══════════════════════════════════════════════════════════
+// INITIALIZATION
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  updateCounters();
+});
+</script>
+</body>
+</html>

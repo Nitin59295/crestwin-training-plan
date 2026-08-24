@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Data Engineering Pipeline — Complete Guide</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 18mm 20mm 18mm;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.65;
+    color: #1a1a2e;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ── Cover Page ── */
+  .cover {
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    text-align: center;
+    background: linear-gradient(135deg, #0f1117 0%, #1a1d27 50%, #222639 100%);
+    color: #fff;
+    padding: 40px;
+  }
+  .cover h1 {
+    font-size: 28pt;
+    font-weight: 800;
+    background: linear-gradient(135deg, #e05a00, #e8540a, #00b4d8, #f7b731);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+    line-height: 1.2;
+  }
+  .cover .subtitle {
+    font-size: 14pt;
+    color: #9498ad;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 2px;
+    margin-bottom: 40px;
+  }
+  .cover .tag-line {
+    font-size: 12pt;
+    color: #6b6f85;
+    max-width: 500px;
+    line-height: 1.7;
+  }
+  .cover .pipeline-art {
+    margin: 40px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 11pt;
+    color: #9498ad;
+    line-height: 1.8;
+    text-align: center;
+  }
+  .cover .footer-note {
+    margin-top: 50px;
+    font-size: 9pt;
+    color: #4a4e6a;
+  }
+
+  /* ── Page content ── */
+  .page { page-break-after: always; padding: 0; }
+  .page:last-child { page-break-after: auto; }
+
+  h2 {
+    font-size: 18pt;
+    font-weight: 800;
+    margin: 30px 0 6px;
+    padding-bottom: 6px;
+    border-bottom: 3px solid;
+  }
+  h2.kafka { color: #e05a00; border-color: #e05a00; }
+  h2.spark { color: #d14600; border-color: #e8540a; }
+  h2.pinot { color: #0090aa; border-color: #00b4d8; }
+  h2.hive { color: #c49200; border-color: #f7b731; }
+  h2.general { color: #1a1a2e; border-color: #1a1a2e; }
+
+  h3 {
+    font-size: 13pt;
+    font-weight: 700;
+    margin: 20px 0 8px;
+    color: #2c2c54;
+  }
+
+  p { margin-bottom: 10px; }
+
+  /* ── Boxes ── */
+  .callout {
+    padding: 14px 16px;
+    border-radius: 8px;
+    margin: 14px 0;
+    font-size: 10.5pt;
+  }
+  .callout-blue {
+    background: #eef6ff;
+    border-left: 4px solid #3498db;
+  }
+  .callout-green {
+    background: #eafaf1;
+    border-left: 4px solid #2ecc71;
+  }
+  .callout-orange {
+    background: #fef5e7;
+    border-left: 4px solid #e67e22;
+  }
+  .callout-red {
+    background: #fdedec;
+    border-left: 4px solid #e74c3c;
+  }
+  .callout-purple {
+    background: #f4ecf7;
+    border-left: 4px solid #8e44ad;
+  }
+  .callout-gray {
+    background: #f4f4f6;
+    border-left: 4px solid #7f8c8d;
+  }
+  .callout .callout-title {
+    font-weight: 700;
+    margin-bottom: 4px;
+    font-size: 11pt;
+  }
+
+  /* ── Analogy boxes ── */
+  .analogy {
+    background: #fffde7;
+    border: 2px dashed #f7b731;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 14px 0;
+  }
+  .analogy .a-title {
+    font-weight: 800;
+    font-size: 11pt;
+    margin-bottom: 4px;
+    color: #c49200;
+  }
+
+  /* ── Code block ── */
+  pre {
+    background: #1a1d27;
+    color: #e8eaf0;
+    padding: 14px 16px;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 9.5pt;
+    line-height: 1.6;
+    overflow-x: auto;
+    margin: 10px 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  pre .comment { color: #6b6f85; }
+  pre .keyword { color: #00b4d8; }
+  pre .string { color: #2ecc71; }
+  pre .number { color: #f7b731; }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 10pt;
+  }
+  th {
+    background: #1a1d27;
+    color: #fff;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 9.5pt;
+  }
+  td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  tr:nth-child(even) td { background: #f8f9fa; }
+
+  /* ── Flow diagrams (text-based) ── */
+  .flow-diagram {
+    background: #f0f4f8;
+    border: 1px solid #d0d8e0;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 14px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 10pt;
+    line-height: 1.9;
+    text-align: center;
+    color: #2c2c54;
+  }
+
+  .flow-box {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 10pt;
+    margin: 2px;
+  }
+  .fb-source { background: #d5f5e3; color: #1e8449; }
+  .fb-kafka { background: #fdebd0; color: #b7500a; }
+  .fb-spark { background: #fadbd8; color: #c0392b; }
+  .fb-pinot { background: #d4efdf; border: 2px solid #00b4d8; color: #0090aa; }
+  .fb-hive { background: #fef9e7; border: 2px solid #f7b731; color: #c49200; }
+
+  .arrow { color: #7f8c8d; font-size: 14pt; margin: 0 4px; }
+
+  /* ── Summary cards ── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .summary-card {
+    border-radius: 10px;
+    padding: 16px;
+    border: 2px solid;
+  }
+  .summary-card h4 {
+    font-size: 12pt;
+    margin-bottom: 4px;
+  }
+  .summary-card .role {
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .summary-card p { font-size: 9.5pt; margin: 0; }
+
+  .sc-kafka { border-color: #e05a00; background: #fef5e7; }
+  .sc-kafka h4 { color: #e05a00; }
+  .sc-kafka .role { color: #e05a00; }
+
+  .sc-spark { border-color: #e8540a; background: #fdedec; }
+  .sc-spark h4 { color: #d14600; }
+  .sc-spark .role { color: #d14600; }
+
+  .sc-pinot { border-color: #00b4d8; background: #eef6ff; }
+  .sc-pinot h4 { color: #0090aa; }
+  .sc-pinot .role { color: #0090aa; }
+
+  .sc-hive { border-color: #f7b731; background: #fef9e7; }
+  .sc-hive h4 { color: #c49200; }
+  .sc-hive .role { color: #c49200; }
+
+  /* ── Timeline ── */
+  .timeline { margin: 14px 0; padding-left: 24px; border-left: 3px solid #d0d8e0; }
+  .tl-item { margin-bottom: 14px; position: relative; }
+  .tl-item::before {
+    content: '';
+    position: absolute;
+    left: -30px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+  }
+  .tl-item.tl-source::before { background: #2ecc71; }
+  .tl-item.tl-kafka::before { background: #e05a00; }
+  .tl-item.tl-spark::before { background: #e8540a; }
+  .tl-item.tl-pinot::before { background: #00b4d8; }
+  .tl-item.tl-hive::before { background: #f7b731; }
+  .tl-time {
+    font-family: 'Courier New', monospace;
+    font-size: 9pt;
+    color: #7f8c8d;
+    font-weight: 700;
+  }
+  .tl-desc { font-size: 10.5pt; }
+  .tl-meta { font-size: 9pt; color: #7f8c8d; font-family: 'Courier New', monospace; }
+
+  /* ── Numbered steps ── */
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 800;
+    font-size: 12pt;
+    margin-right: 8px;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+  .sn-1 { background: #2ecc71; }
+  .sn-2 { background: #e05a00; }
+  .sn-3 { background: #e8540a; }
+  .sn-4 { background: #8e44ad; }
+  .sn-5 { background: #00b4d8; }
+  .sn-6 { background: #f7b731; }
+
+  /* ── Footer ── */
+  .page-footer {
+    margin-top: 30px;
+    padding-top: 10px;
+    border-top: 1px solid #e0e0e0;
+    text-align: center;
+    font-size: 8pt;
+    color: #aaa;
+  }
+
+  /* ── Lists ── */
+  ul, ol { margin: 8px 0 12px 20px; }
+  li { margin-bottom: 4px; }
+
+  /* ── Highlight span ── */
+  .hl { background: #fff3cd; padding: 1px 4px; border-radius: 3px; font-weight: 600; }
+  .hl-kafka { background: #fdebd0; color: #b7500a; }
+  .hl-spark { background: #fadbd8; color: #c0392b; }
+  .hl-pinot { background: #d6eaf8; color: #0090aa; }
+  .hl-hive { background: #fef9e7; color: #c49200; }
+
+  strong { font-weight: 700; }
+  em { font-style: italic; color: #555; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     COVER PAGE
+     ═══════════════════════════════════════ -->
+<div class="cover">
+  <h1>Data Engineering Pipeline</h1>
+  <h1 style="font-size:22pt;">Complete Guide</h1>
+  <div class="subtitle">Kafka → Spark → Pinot / Hive</div>
+  <div class="pipeline-art">
+    📡 Apps &amp; Services<br>
+    ↓<br>
+    🟠 Apache Kafka (Receive &amp; Hold)<br>
+    ↓<br>
+    ⚡ Apache Spark (Clean &amp; Process)<br>
+    ↙ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↘<br>
+    🔵 Apache Pinot &nbsp;&nbsp;&nbsp;&nbsp; 🟡 Apache Hive<br>
+    (Fast Answers) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (Big History)<br>
+    ↓ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↓<br>
+    📊 Live Dashboard &nbsp;&nbsp;&nbsp; 📈 Monthly Reports
+  </div>
+  <div class="tag-line">
+    A plain-language explanation of how four powerful<br>
+    technologies work together to move, clean, store,<br>
+    and serve data — from click to dashboard.
+  </div>
+  <div class="footer-note">
+    Prepared for learning &amp; interview preparation • August 2026
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 1: THE BIG PICTURE
+     ═══════════════════════════════════════ -->
+<div class="page">
+  <h2 class="general">📌 The Big Picture — Why Do We Need All Four?</h2>
+
+  <p>Imagine you run an online store. Every second, people are browsing products, placing orders, and making payments. You need to:</p>
+
+  <ol>
+    <li><strong>Capture</strong> every single event without losing any</li>
+    <li><strong>Clean</strong> the data — fix errors, remove duplicates</li>
+    <li><strong>Show live numbers</strong> — "50 orders in the last minute!"</li>
+    <li><strong>Keep history</strong> — "What was our revenue last December?"</li>
+  </ol>
+
+  <p>No single tool does all four well. That's why we use four tools, each doing what it's best at:</p>
+
+  <div class="summary-grid">
+    <div class="summary-card sc-kafka">
+      <h4>🟠 Apache Kafka</h4>
+      <div class="role">The Postman</div>
+      <p>Receives every event and holds it safely until someone is ready to process it. Never loses a message.</p>
+    </div>
+    <div class="summary-card sc-spark">
+      <h4>⚡ Apache Spark</h4>
+      <div class="role">The Quality Inspector</div>
+      <p>Picks up events from Kafka, checks them, cleans them, fixes them, and sends good data forward.</p>
+    </div>
+    <div class="summary-card sc-pinot">
+      <h4>🔵 Apache Pinot</h4>
+      <div class="role">The Speed Answer Machine</div>
+      <p>Stores recent data in a way that answers questions in milliseconds. Powers live dashboards.</p>
+    </div>
+    <div class="summary-card sc-hive">
+      <h4>🟡 Apache Hive</h4>
+      <div class="role">The Giant Filing Cabinet</div>
+      <p>Stores ALL historical data cheaply. Great for big questions like "total revenue this year."</p>
+    </div>
+  </div>
+
+  <div class="analogy">
+    <div class="a-title">🍕 Think of it like a Pizza Restaurant</div>
+    <p><strong>Kafka</strong> = the phone line that takes orders. It writes down every order and doesn't lose any, even if the kitchen is busy.</p>
+    <p><strong>Spark</strong> = the kitchen. It reads orders, checks if they're valid (no empty orders!), prepares them, and sends them out.</p>
+    <p><strong>Pinot</strong> = the TV screen showing "Orders right now: 12, Most popular: Margherita." Updated every second.</p>
+    <p><strong>Hive</strong> = the record book in the back office. Has every order from the last 5 years for monthly reports.</p>
+  </div>
+
+  <h3>The Flow in One Sentence</h3>
+  <div class="flow-diagram">
+    <span class="flow-box fb-source">📡 Your Apps</span>
+    <span class="arrow">→</span>
+    <span class="flow-box fb-kafka">🟠 Kafka</span>
+    <span class="arrow">→</span>
+    <span class="flow-box fb-spark">⚡ Spark</span>
+    <span class="arrow">→</span>
+    <span class="flow-box fb-pinot">🔵 Pinot</span>
+    +
+    <span class="flow-box fb-hive">🟡 Hive</span>
+  </div>
+
+  <div class="callout callout-blue">
+    <div class="callout-title">💡 Why not just one database?</div>
+    A regular database (like MySQL) can handle small amounts of data. But when you have <strong>millions of events per second</strong>, you need specialized tools. Each of these four tools is designed to handle one part of the problem extremely well.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 2: WHAT IS AN EVENT?
+     ═══════════════════════════════════════ -->
+<div class="page">
+  <h2 class="general">📦 What is an "Event"?</h2>
+
+  <p>An <strong>event</strong> is just a small piece of data that says <em>"something happened."</em></p>
+
+  <p>When a customer places an order, your app creates an event like this:</p>
+
+<pre>{
+  "order_id": "ORD-1001",
+  "customer_id": "CUST-501",
+  "product": "iPhone",
+  "amount": 79999,
+  "status": "PLACED",
+  "timestamp": "2026-08-24T10:15:30"
+}</pre>
+
+  <p>This is just text in <strong>JSON format</strong> — a way to structure data that computers can easily read.</p>
+
+  <h3>Types of Events in Our System</h3>
+  <table>
+    <tr><th>Event Type</th><th>Comes From</th><th>Example</th></tr>
+    <tr><td>Order Created</td><td>E-commerce App</td><td>Customer placed an order for iPhone</td></tr>
+    <tr><td>Payment Completed</td><td>Payment Service</td><td>₹79,999 charged to credit card</td></tr>
+    <tr><td>Product Viewed</td><td>Website / Mobile App</td><td>Customer looked at MacBook Pro page</td></tr>
+    <tr><td>Order Shipped</td><td>Logistics Service</td><td>Package handed to delivery partner</td></tr>
+  </table>
+
+  <p>In a real system, there could be <strong>thousands of these events every second</strong> coming from different apps, websites, and services all at once.</p>
+
+  <h3>What Can Go Wrong With Events?</h3>
+
+  <div class="callout callout-orange">
+    <div class="callout-title">⚡ Duplicate Events</div>
+    Sometimes the same event gets sent twice. This happens when a network hiccup occurs — the app sends the event, Kafka receives it, but the "OK" reply gets lost. So the app thinks it failed and sends it again. Now Kafka has two copies of the same order.
+  </div>
+
+  <div class="callout callout-red">
+    <div class="callout-title">⛔ Bad / Invalid Events</div>
+    Sometimes an event has broken data. For example, the <code>amount</code> field might say <code>"INVALID"</code> instead of a number. This can happen because of bugs in the app code. If we don't catch these, they'll mess up our reports.
+  </div>
+
+  <p>This is exactly why we need <span class="hl hl-spark">Spark</span> in the middle — to catch duplicates and reject bad data before it reaches our dashboards and reports.</p>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 3: STEP 1 & 2 — SOURCES + KAFKA
+     ═══════════════════════════════════════ -->
+<div class="page">
+  <h2 class="kafka">Step <span class="step-num sn-1">1</span> Generate Events + Step <span class="step-num sn-2">2</span> Kafka Ingestion</h2>
+
+  <h3><span class="step-num sn-1">1</span> Events Are Generated</h3>
+
+  <p>When you click <strong>"Execute Pipeline"</strong>, the simulator creates <strong>18 events</strong>:</p>
+  <ul>
+    <li><strong>15 normal events</strong> — valid orders from different products</li>
+    <li><strong>2 duplicate events</strong> — same order_id sent twice</li>
+    <li><strong>1 bad event</strong> — amount field is "INVALID" (not a number)</li>
+  </ul>
+
+  <p>Each event comes from one of four sources (E-commerce App, Mobile App, Payment Service, Website). In the simulator, the green dot next to each source pulses when it's sending.</p>
+
+  <h3><span class="step-num sn-2">2</span> Kafka Receives the Events</h3>
+
+  <p>Now all 18 events need to go to Kafka. Here's what happens inside Kafka:</p>
+
+  <h3>What is a Topic?</h3>
+  <p>A <strong>topic</strong> is like a mailbox with a label on it. Our topic is called <code>orders-events</code>. All order-related events go into this one topic.</p>
+
+  <h3>What are Partitions?</h3>
+  <p>Inside a topic, the data is split into <strong>partitions</strong>. Think of them as <strong>lanes in a highway</strong>. We have 3 partitions (P0, P1, P2).</p>
+
+  <div class="analogy">
+    <div class="a-title">🛣️ Highway Analogy</div>
+    <p>Imagine a 3-lane highway. Cars (events) get assigned to a lane based on their license plate number. <code>ORD-1001</code> always goes to Lane 1, <code>ORD-1002</code> always goes to Lane 2. This way, all events for the <strong>same order always travel in the same lane</strong>, keeping them in order.</p>
+  </div>
+
+  <p>The lane is decided by a formula:</p>
+<pre>partition = hash(order_id) % 3
+
+Example:
+  hash("ORD-1001") = 947283 → 947283 % 3 = 0 → Partition 0
+  hash("ORD-1002") = 283471 → 283471 % 3 = 1 → Partition 1
+  hash("ORD-1003") = 619284 → 619284 % 3 = 2 → Partition 2</pre>
+
+  <h3>What is an Offset?</h3>
+  <p>Inside each partition, every message gets a number called an <strong>offset</strong>. It starts at 0 and goes up. This is like a <strong>serial number receipt</strong>.</p>
+
+<pre>Partition 0:  [Offset 0: ORD-1001] [Offset 1: ORD-1004] [Offset 2: ORD-1007] ...
+Partition 1:  [Offset 0: ORD-1002] [Offset 1: ORD-1005] [Offset 2: ORD-1008] ...
+Partition 2:  [Offset 0: ORD-1003] [Offset 1: ORD-1006] [Offset 2: ORD-1009] ...</pre>
+
+  <h3>What is Consumer Lag?</h3>
+  <p>After Kafka receives all 18 messages, nobody has read them yet. The <strong>consumer lag</strong> is 18 — meaning 18 messages are waiting. As Spark reads them one by one, the lag decreases back to 0.</p>
+
+  <div class="callout callout-green">
+    <div class="callout-title">✅ Why Kafka is Important</div>
+    Without Kafka, if your Spark job crashes for 5 minutes, all events from those 5 minutes are <strong>lost forever</strong>. With Kafka, the events are <strong>safely stored on disk</strong> (default: 7 days). When Spark comes back, it picks up right where it left off. No data loss.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 4: STEP 3 — SPARK
+     ═══════════════════════════════════════ -->
+<div class="page">
+  <h2 class="spark">Step <span class="step-num sn-3">3</span> Spark Processing — The Brain</h2>
+
+  <p>Spark is the most important piece. It takes messy, raw data from Kafka and turns it into clean, reliable data. The simulator shows 6 stages — here's what each one actually does:</p>
+
+  <h3>Stage 1: Read Kafka</h3>
+  <p>Spark connects to Kafka and pulls a batch of messages. It remembers which <strong>offset</strong> it last read, so it never reads the same message twice and never skips one.</p>
+
+  <div class="callout callout-gray">
+    <div class="callout-title">📖 Simple Version</div>
+    "Hey Kafka, give me all messages after offset 42 in each partition."
+  </div>
+
+  <h3>Stage 2: Deserialize JSON</h3>
+  <p>Kafka stores messages as raw bytes (computer gibberish). Spark converts them back into readable JSON, then into a proper table with columns:</p>
+
+<pre>Raw bytes → JSON string → Structured table
+
+| order_id | customer_id | product  | amount | status |
+|----------|-------------|----------|--------|--------|
+| ORD-1001 | CUST-501    | iPhone   | 79999  | PLACED |
+| ORD-1002 | CUST-502    | MacBook  | 149999 | PLACED |</pre>
+
+  <h3>Stage 3: Validate Records</h3>
+  <p>Spark checks every single record: Is the <code>amount</code> actually a number? Is the <code>order_id</code> present? If a record is broken, Spark <strong>rejects it</strong> and puts it aside in a "dead letter queue" (a place for bad records to be examined later).</p>
+
+  <p>In our simulator, the event with <code>amount: "INVALID"</code> gets caught here. The counter shows <strong>Invalid: 1</strong>.</p>
+
+  <h3>Stage 4: Remove Duplicates</h3>
+  <p>Spark keeps track of which <code>order_id</code> values it has already seen. When the same <code>order_id</code> appears again, it throws away the duplicate.</p>
+
+  <p>In our simulator, 2 events have the same <code>order_id</code> as earlier events, so the counter shows <strong>Duplicates: 2</strong>.</p>
+
+  <h3>Stage 5: Transform Data</h3>
+  <p>Spark adds useful information to each record:</p>
+  <ul>
+    <li><code>processing_status: "VALID"</code> — marks that this record passed all checks</li>
+    <li><code>processed_at: "2026-08-24T10:15:32"</code> — when Spark processed it</li>
+  </ul>
+
+  <h3>Stage 6: Aggregate Metrics</h3>
+  <p>Spark calculates summaries: total orders per product, total revenue, etc. These pre-computed numbers make downstream queries faster.</p>
+
+  <div class="callout callout-blue">
+    <div class="callout-title">📊 Final Spark Scorecard</div>
+    <table>
+      <tr><th>Metric</th><th>Value</th><th>What It Means</th></tr>
+      <tr><td>Records Read</td><td>18</td><td>Spark pulled all 18 events from Kafka</td></tr>
+      <tr><td>Valid Records</td><td>15</td><td>15 events passed all checks</td></tr>
+      <tr><td>Duplicates Removed</td><td>2</td><td>2 events had repeated order_ids</td></tr>
+      <tr><td>Invalid Records</td><td>1</td><td>1 event had bad data (amount: "INVALID")</td></tr>
+    </table>
+  </div>
+
+  <p>Only the <strong>15 valid, clean records</strong> move forward. The rest are logged and quarantined.</p>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 5: HOW SPARK WORKS INSIDE
+     ═══════════════════════════════════════ -->
+<div class="page">
+  <h2 class="spark">⚙️ How Spark Works Inside — Distributed Processing</h2>
+
+  <p>Here's the secret power of Spark: it doesn't run on one computer. It runs on <strong>many computers at the same time</strong>.</p>
+
+  <div class="analogy">
+    <div class="a-title">📚 Library Analogy</div>
+    <p>Imagine you need to count how many times each word appears in a 10,000-page book.</p>
+    <p><strong>Without Spark:</strong> One person reads all 10,000 pages. Takes forever.</p>
+    <p><strong>With Spark:</strong> You give 100 people 100 pages each. Each person counts their pages. Then you combine all the counts. Done in 1/100th the time!</p>
+  </div>
+
+  <h3>The Key Players</h3>
+
+  <table>
+    <tr><th>Component</th><th>What It Does</th><th>Analogy</th></tr>
+    <tr><td><strong>Driver</strong></td><td>The boss. Reads your code, creates a plan, assigns work to executors.</td><td>Project Manager</td></tr>
+    <tr><td><strong>Executor</strong></td><td>A worker. Receives a chunk of data, processes it, sends results back.</td><td>Team Member</td></tr>
+    <tr><td><strong>Partition</strong></td><td>A chunk of data. Each executor gets one or more partitions to work on.</td><td>A stack of pages</td></tr>
+    <tr><td><strong>Shuffle</strong></td><td>Moving data between executors. Needed when you GROUP BY or JOIN.</td><td>Sorting papers between team members</td></tr>
+  </table>
+
+  <div class="flow-diagram">
+    📋 <strong>Driver</strong> (makes the plan)<br>
+    ↓ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↓ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↓<br>
+    👷 Executor 1 &nbsp;&nbsp;&nbsp; 👷 Executor 2 &nbsp;&nbsp;&nbsp; 👷 Executor 3<br>
+    (Partition 0) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (Partition 1) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (Partition 2)<br>
+    ↓ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↓ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↓<br>
+    🔀 <strong>Shuffle</strong> (for aggregation — regroup by product)<br>
+    ↓<br>
+    ✅ Final clean, aggregated result
+  </div>
+
+  <h3>What is Structured Streaming?</h3>
+
+  <p>Spark has two modes:</p>
+  <ul>
+    <li><strong>Batch mode:</strong> Process a big file once. Like washing all your clothes on Sunday.</li>
+    <li><strong>Streaming mode (Structured Streaming):</strong> Process data continuously as it arrives. Like washing clothes as soon as they get dirty.</li>
+  </ul>
+
+  <p>In our pipeline, Spark uses <strong>Structured Streaming</strong>. It continuously watches Kafka for new events and processes them in tiny batches called <strong>micro-batches</strong> (every few seconds).</p>
+
+  <div class="callout callout-purple">
+    <div class="callout-title">🎯 Key Spark Concept: Micro-Batch</div>
+    Spark doesn't process one event at a time (too slow) or wait for a million events (too much delay). It collects events for a short time (e.g., 2 seconds), processes the whole batch together, then grabs the next batch. This gives a good balance of <strong>speed</strong> and <strong>efficiency</strong>.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 6: STEP 4 — THE FORK
+     ═══════════════════════════════════════ -->
+<div class="page">
+  <h2 class="general">Step <span class="step-num sn-4">4</span> The Fork — Why Two Paths?</h2>
+
+  <p>After Spark cleans the data, it sends the <strong>same 15 valid records to two different places</strong> at the same time:</p>
+
+  <div class="flow-diagram">
+    ⚡ Spark (15 clean records)<br><br>
+    ↙ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↘<br><br>
+    <span class="flow-box fb-pinot">🔵 Pinot</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="flow-box fb-hive">🟡 Hive</span><br><br>
+    ⚡ Real-Time Path &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 📦 Historical Path<br>
+    "What's happening NOW?" &nbsp;&nbsp;&nbsp; "What happened LAST YEAR?"
+  </div>
+
+  <h3>Why not just use one system?</h3>
+
+  <p>Because <strong>speed</strong> and <strong>scale</strong> are opposite trade-offs:</p>
+
+  <table>
+    <tr><th>Question</th><th>Best Tool</th><th>Why</th></tr>
+    <tr>
+      <td>"How many orders in the last 5 minutes?"</td>
+      <td><span class="hl hl-pinot">Pinot</span></td>
+      <td>Pinot answers in <strong>20ms</strong> because it keeps recent data in memory with special indexes</td>
+    </tr>
+    <tr>
+      <td>"What was total revenue for all of 2025?"</td>
+      <td><span class="hl hl-hive">Hive</span></td>
+      <td>Hive can scan <strong>petabytes</strong> of historical data cheaply, but takes 5–60 seconds</td>
+    </tr>
+  </table>
+
+  <div class="analogy">
+    <div class="a-title">🏪 Shop Analogy</div>
+    <p><strong>Pinot</strong> is like the cash register display showing today's sales — instant, always updated, but only shows recent data.</p>
+    <p><strong>Hive</strong> is like the accounting ledger in the back office — has every transaction from the last 10 years, but takes time to look things up.</p>
+  </div>
+
+  <div class="callout callout-blue">
+    <div class="callout-title">💡 This Pattern Has a Name</div>
+    This two-path approach is called the <strong>Lambda Architecture</strong>:
+    <ul style="margin-top:6px;">
+      <li><strong>Speed Layer</strong> (Pinot) — fast answers from recent data</li>
+      <li><strong>Batch Layer</strong> (Hive) — complete answers from all data</li>
+    </ul>
+    Many big tech companies (LinkedIn, Uber, Netflix) use this exact pattern.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 7: STEP 5 — PINOT
+     ═══════════════════════════════════════ -->
+<div class="page">
+  <h2 class="pinot">Step <span class="step-num sn-5">5</span> Apache Pinot — Real-Time Analytics</h2>
+
+  <p>The 15 clean records arrive in Pinot. Within <strong>milliseconds</strong>, they become queryable. Here's how:</p>
+
+  <h3>How Pinot Stores Data</h3>
+
+  <p>Pinot doesn't store data like a normal database (row by row). It uses <strong>columnar storage</strong>:</p>
+
+<pre>Normal (Row-based):         Columnar (Pinot):
+─────────────────           ─────────────────
+| ORD-1001 | iPhone | 79999  |   order_id column:  [ORD-1001, ORD-1002, ORD-1003]
+| ORD-1002 | MacBook | 149999|   product column:   [iPhone, MacBook, iPad]
+| ORD-1003 | iPad   | 59999  |   amount column:    [79999, 149999, 59999]</pre>
+
+  <div class="callout callout-green">
+    <div class="callout-title">✅ Why columnar is faster</div>
+    If your query only needs the <code>product</code> column (e.g., <code>SELECT product, COUNT(*)</code>), Pinot reads ONLY the product column. It doesn't waste time reading order_id or amount. This can be <strong>10–100x faster</strong>.
+  </div>
+
+  <h3>What are Segments?</h3>
+  <p>Pinot groups records into <strong>segments</strong> (chunks of ~5,000–100,000 records). Each segment is independently searchable. When new data arrives, a new segment is created. The simulator shows the segment count increasing.</p>
+
+  <h3>What are Indexes?</h3>
+  <p>Pinot builds <strong>inverted indexes</strong> — like the index at the back of a textbook:</p>
+
+<pre>Instead of scanning every row to find product = "iPhone":
+
+Inverted Index:
+  "iPhone"  → rows [0, 5, 12, 18]     ← jump directly here!
+  "MacBook" → rows [1, 7, 14]
+  "iPad"    → rows [2, 9, 16]</pre>
+
+  <h3>Example: Running a Pinot Query</h3>
+
+<pre>SELECT product, COUNT(*)
+FROM orders_realtime
+GROUP BY product
+ORDER BY COUNT(*) DESC;</pre>
+
+  <p>When you click <strong>"Run Query"</strong> in the simulator, here's what would happen in a real Pinot cluster:</p>
+
+  <ol>
+    <li><strong>Broker</strong> receives the query</li>
+    <li>Broker sends it to all <strong>Servers</strong> that hold segments of the table</li>
+    <li>Each server scans its segments using the inverted index (not full table scan!)</li>
+    <li>Each server returns partial results to the broker</li>
+    <li>Broker <strong>merges</strong> all partial results</li>
+    <li>Final answer returned in <strong>15–50 milliseconds</strong></li>
+  </ol>
+
+  <h3>Real-World Pinot Use Cases</h3>
+  <table>
+    <tr><th>Company</th><th>Use Case</th></tr>
+    <tr><td>LinkedIn</td><td>"Who Viewed Your Profile" — needs sub-second response for millions of users</td></tr>
+    <tr><td>Uber</td><td>Real-time surge pricing, driver analytics dashboards</td></tr>
+    <tr><td>Stripe</td><td>Real-time payment analytics and fraud monitoring</td></tr>
+    <tr><td>Walmart</td><td>Live inventory tracking across thousands of stores</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 8: STEP 6 — HIVE
+     ═══════════════════════════════════════ -->
+<div class="page">
+  <h2 class="hive">Step <span class="step-num sn-6">6</span> Apache Hive — Historical Storage</h2>
+
+  <p>The same 15 records are also written to Hive. But Hive stores data very differently from Pinot.</p>
+
+  <h3>How Hive Stores Data</h3>
+
+  <p>Hive writes data as <strong>files</strong> on a distributed filesystem (like Amazon S3 or HDFS). The files are organized into <strong>folders based on date</strong>:</p>
+
+<pre>📁 warehouse/orders/
+├── 📂 year=2026/
+│   ├── 📂 month=08/
+│   │   ├── 📂 day=24/      ← today's data
+│   │   │   ├── part-00000.parquet
+│   │   │   ├── part-00001.parquet
+│   │   │   └── part-00002.parquet
+│   │   ├── 📂 day=23/      ← yesterday's data
+│   │   └── 📂 day=22/
+│   └── 📂 month=07/
+└── 📂 year=2025/            ← last year's data</pre>
+
+  <h3>What are Partitions? (Hive's version)</h3>
+
+  <p>Each folder (year/month/day) is a <strong>partition</strong>. This is Hive's most powerful trick:</p>
+
+  <div class="analogy">
+    <div class="a-title">📚 Filing Cabinet Analogy</div>
+    <p>Imagine a filing cabinet with drawers labeled by year, folders by month, and sections by day. If someone asks "find all receipts from August 2026," you go directly to that drawer. You don't look through the entire cabinet.</p>
+  </div>
+
+  <p>When you run this query:</p>
+
+<pre>SELECT product, SUM(amount) AS revenue
+FROM orders_history
+WHERE year = 2026
+GROUP BY product;</pre>
+
+  <p>Hive does <strong>partition pruning</strong> — it completely skips years 2024, 2025 and only reads folders under <code>year=2026/</code>. This makes queries on huge datasets much faster.</p>
+
+  <h3>What is Parquet?</h3>
+
+  <p>The files are stored in <strong>Parquet format</strong> — a special file format designed for analytics:</p>
+
+  <table>
+    <tr><th>Feature</th><th>CSV File</th><th>Parquet File</th></tr>
+    <tr><td>Storage</td><td>Row-based, plain text</td><td>Columnar, binary</td></tr>
+    <tr><td>Size</td><td>Large (no compression)</td><td>Small (heavily compressed)</td></tr>
+    <tr><td>Query "SELECT product"</td><td>Reads entire file</td><td>Reads only product column</td></tr>
+    <tr><td>Speed</td><td>Slow</td><td>10–100x faster</td></tr>
+  </table>
+
+  <h3>When You Click "Run Batch Query"</h3>
+
+  <p>The simulator shows results with a response time of <strong>5–8 seconds</strong>. In real life, Hive queries can take <strong>seconds to minutes</strong> depending on data size. This is much slower than Pinot (milliseconds), but Hive can handle <strong>petabytes</strong> (millions of gigabytes) of data at very low storage cost.</p>
+
+  <div class="callout callout-orange">
+    <div class="callout-title">📊 When to use Hive vs Pinot</div>
+    <table>
+      <tr><th></th><th>Use Pinot When...</th><th>Use Hive When...</th></tr>
+      <tr><td>Data</td><td>Recent (hours/days)</td><td>Historical (months/years)</td></tr>
+      <tr><td>Speed</td><td>Need answer in milliseconds</td><td>Can wait seconds/minutes</td></tr>
+      <tr><td>Users</td><td>Thousands of concurrent users</td><td>Analysts running reports</td></tr>
+      <tr><td>Cost</td><td>Expensive (memory/SSD)</td><td>Cheap (S3/disk storage)</td></tr>
+      <tr><td>Example</td><td>"Live dashboard for ops team"</td><td>"Q3 revenue report for CFO"</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 9: JOURNEY OF ONE EVENT
+     ═══════════════════════════════════════ -->
+<div class="page">
+  <h2 class="general">🔍 Journey of a Single Event: ORD-1001</h2>
+
+  <p>Let's follow one event through the entire pipeline to see everything that happens to it:</p>
+
+  <div class="timeline">
+    <div class="tl-item tl-source">
+      <div class="tl-time">T + 0 ms</div>
+      <div class="tl-desc"><strong>Event Created</strong> — Customer clicks "Place Order" on the website. The E-commerce app creates a JSON event.</div>
+      <div class="tl-meta">{ order_id: "ORD-1001", product: "iPhone", amount: 79999, status: "PLACED" }</div>
+    </div>
+
+    <div class="tl-item tl-kafka">
+      <div class="tl-time">T + 5 ms</div>
+      <div class="tl-desc"><strong>Kafka Receives Event</strong> — The producer sends the event to Kafka. Kafka appends it to Partition 1 at Offset 42. The event is now safely stored on disk across 3 broker machines.</div>
+      <div class="tl-meta">Topic: orders-events | Partition: 1 | Offset: 42 | Replicas: 3</div>
+    </div>
+
+    <div class="tl-item tl-spark">
+      <div class="tl-time">T + 50 ms</div>
+      <div class="tl-desc"><strong>Spark Picks It Up</strong> — Spark's micro-batch triggers. It reads this event (along with others) from Kafka. It deserializes the JSON, checks the schema — amount is a valid number ✅ — and checks for duplicates — first time seeing ORD-1001 ✅.</div>
+      <div class="tl-meta">Validation: PASSED | Dedup: PASSED | processing_status: "VALID"</div>
+    </div>
+
+    <div class="tl-item tl-pinot">
+      <div class="tl-time">T + 70 ms</div>
+      <div class="tl-desc"><strong>Written to Pinot</strong> — Spark sends the clean record to Pinot. Pinot adds it to a segment, builds an inverted index on the product field. The record is now queryable in the live dashboard.</div>
+      <div class="tl-meta">Table: orders_realtime | Segment: seg_1 | Indexed: product, status</div>
+    </div>
+
+    <div class="tl-item tl-hive">
+      <div class="tl-time">T + 85 ms</div>
+      <div class="tl-desc"><strong>Written to Hive</strong> — Spark also writes the record as a Parquet file to S3 under the day=24 partition. The Hive metastore now knows about this new data.</div>
+      <div class="tl-meta">Path: s3://warehouse/orders/year=2026/month=08/day=24/part-00001.parquet</div>
+    </div>
+  </div>
+
+  <div class="callout callout-green">
+    <div class="callout-title">⏱️ Total Time: ~85 milliseconds</div>
+    From the moment a customer clicks "Place Order" to the moment it appears on a live Pinot dashboard — under 100 milliseconds. That's faster than a blink of an eye (300ms).
+  </div>
+
+  <h3>What About the Bad Event?</h3>
+  <div class="timeline" style="margin-top:10px;">
+    <div class="tl-item tl-source">
+      <div class="tl-time">T + 0 ms</div>
+      <div class="tl-desc">A buggy service sends an event with <code>amount: "INVALID"</code></div>
+    </div>
+    <div class="tl-item tl-kafka">
+      <div class="tl-time">T + 5 ms</div>
+      <div class="tl-desc">Kafka stores it — Kafka doesn't check content, it stores everything</div>
+    </div>
+    <div class="tl-item tl-spark">
+      <div class="tl-time">T + 50 ms</div>
+      <div class="tl-desc"><strong>Spark catches it!</strong> Validation fails because "INVALID" is not a number. Record is sent to a <strong>dead-letter queue</strong> for engineers to investigate. It does NOT reach Pinot or Hive.</div>
+      <div class="tl-meta">Validation: FAILED ❌ → Quarantined to dead_letter_topic</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 10: FAILURE SCENARIOS
+     ═══════════════════════════════════════ -->
+<div class="page">
+  <h2 class="general">⚠️ What Can Go Wrong? — Failure Scenarios</h2>
+
+  <p>In production, things break. The simulator lets you experience four common problems. Here's what each one teaches you:</p>
+
+  <h3>📊 1. Kafka Consumer Lag</h3>
+  <div class="callout callout-orange">
+    <div class="callout-title">What happens</div>
+    <p>Messages pile up in Kafka because Spark can't read them fast enough. The lag counter climbs to 5,000+.</p>
+    <p><strong>Real causes:</strong> Spark crashed, network issues, not enough Spark workers, sudden traffic spike (Black Friday!).</p>
+    <p><strong>How to fix:</strong></p>
+    <ul>
+      <li>Add more Spark executors (more workers)</li>
+      <li>Add more Kafka partitions (more lanes)</li>
+      <li>Optimize Spark code to process faster</li>
+    </ul>
+    <p><strong>How to monitor:</strong> Alert when lag exceeds a threshold (e.g., >1000 messages).</p>
+  </div>
+
+  <h3>🐢 2. Spark Slow Processing</h3>
+  <div class="callout callout-red">
+    <div class="callout-title">What happens</div>
+    <p>Spark takes seconds instead of milliseconds to process each batch. Latency jumps from 45ms to 8,400ms.</p>
+    <p><strong>Real causes:</strong></p>
+    <ul>
+      <li><strong>Data skew</strong> — one partition has 10× more data than others (one worker is overloaded)</li>
+      <li><strong>Executor spill</strong> — not enough memory, so data overflows to slow disk</li>
+      <li><strong>Large shuffle</strong> — too much data being moved between workers during GROUP BY</li>
+    </ul>
+    <p><strong>How to fix:</strong> Add memory, repartition skewed data, use broadcast joins for small tables.</p>
+  </div>
+
+  <h3>⚡ 3. Duplicate Events</h3>
+  <div class="callout callout-orange">
+    <div class="callout-title">What happens</div>
+    <p>The same order_id appears multiple times in Kafka. Without deduplication, your revenue report would count the same order twice!</p>
+    <p><strong>Real causes:</strong> Producer retries, "at-least-once" delivery guarantees, app-level bugs.</p>
+    <p><strong>How to fix:</strong> Spark <code>dropDuplicates(["order_id"])</code>, enable Kafka idempotent producer, use exactly-once semantics.</p>
+  </div>
+
+  <h3>⛔ 4. Bad Schema / Invalid Data</h3>
+  <div class="callout callout-red">
+    <div class="callout-title">What happens</div>
+    <p>An event arrives with <code>amount: "INVALID"</code> instead of a number. If this gets into Pinot, your revenue dashboard would break.</p>
+    <p><strong>Real causes:</strong> Upstream service deployed a bug, different teams using different formats, missing schema enforcement.</p>
+    <p><strong>How to fix:</strong> Use a <strong>Schema Registry</strong> (enforces that all events follow a predefined schema before they even enter Kafka), plus validation in Spark as a second safety net.</p>
+  </div>
+
+  <div class="callout callout-purple">
+    <div class="callout-title">🎯 Interview Tip</div>
+    When discussing failures, always mention three things: <strong>(1) How to detect it</strong> (monitoring/alerts), <strong>(2) How to fix it</strong> (short-term), and <strong>(3) How to prevent it</strong> (long-term). This shows you think about systems holistically.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 11: COMPARISON TABLE + INTERVIEW
+     ═══════════════════════════════════════ -->
+<div class="page">
+  <h2 class="general">📋 Complete Comparison Table</h2>
+
+  <table>
+    <tr>
+      <th></th>
+      <th style="color:#e05a00;">Apache Kafka</th>
+      <th style="color:#d14600;">Apache Spark</th>
+      <th style="color:#0090aa;">Apache Pinot</th>
+      <th style="color:#c49200;">Apache Hive</th>
+    </tr>
+    <tr>
+      <td><strong>Role</strong></td>
+      <td>Receive &amp; hold events</td>
+      <td>Clean &amp; process</td>
+      <td>Fast queries</td>
+      <td>Historical queries</td>
+    </tr>
+    <tr>
+      <td><strong>One-word</strong></td>
+      <td>Ingest</td>
+      <td>Process</td>
+      <td>Serve (fast)</td>
+      <td>Store (big)</td>
+    </tr>
+    <tr>
+      <td><strong>Speed</strong></td>
+      <td>Milliseconds to write</td>
+      <td>Seconds per batch</td>
+      <td>15–50ms queries</td>
+      <td>5–60s queries</td>
+    </tr>
+    <tr>
+      <td><strong>Data size</strong></td>
+      <td>Days (retention)</td>
+      <td>Batch at a time</td>
+      <td>GBs to low TBs</td>
+      <td>Petabytes</td>
+    </tr>
+    <tr>
+      <td><strong>Storage</strong></td>
+      <td>Commit log on disk</td>
+      <td>In-memory (temp)</td>
+      <td>Columnar + indexes</td>
+      <td>Parquet on S3/HDFS</td>
+    </tr>
+    <tr>
+      <td><strong>Think of it as</strong></td>
+      <td>Post office</td>
+      <td>Quality inspector</td>
+      <td>Speed dashboard</td>
+      <td>Filing cabinet</td>
+    </tr>
+    <tr>
+      <td><strong>Created by</strong></td>
+      <td>LinkedIn</td>
+      <td>UC Berkeley</td>
+      <td>LinkedIn</td>
+      <td>Facebook</td>
+    </tr>
+  </table>
+
+  <h2 class="general" style="margin-top:30px;">🎤 Interview Cheat Sheet</h2>
+
+  <p>If someone asks <em>"Explain how these tools work together"</em>, here's a simple script:</p>
+
+  <div class="callout callout-green" style="font-size:10.5pt; line-height:1.8;">
+    <div class="callout-title">Your Answer</div>
+    <p><em>"We use a four-layer architecture for our event processing pipeline:</em></p>
+    <p><em><strong>Kafka</strong> is the ingestion layer. It receives millions of events per second from all our services and stores them durably in partitioned topics. It decouples producers from consumers — if downstream systems are slow or crash, no data is lost.</em></p>
+    <p><em><strong>Spark</strong> is the processing layer. It runs a Structured Streaming job that continuously consumes from Kafka, validates schemas, removes duplicates, applies business transformations, and computes aggregations.</em></p>
+    <p><em>After processing, data goes to two places:</em></p>
+    <p><em><strong>Pinot</strong> for real-time analytics — it indexes streaming data for sub-second queries. We use it for live dashboards and user-facing analytics.</em></p>
+    <p><em><strong>Hive</strong> for historical analytics — it stores everything as partitioned Parquet files in S3. We use it for monthly reports and large-scale batch analysis."</em></p>
+  </div>
+
+  <h3>Key Phrases to Remember</h3>
+
+  <div class="flow-diagram" style="text-align:left;font-family:inherit;">
+    <strong>Kafka:</strong> "durable, partitioned, decoupled, exactly-once delivery"<br>
+    <strong>Spark:</strong> "distributed, micro-batch, structured streaming, transformations"<br>
+    <strong>Pinot:</strong> "columnar, inverted indexes, segments, sub-second latency"<br>
+    <strong>Hive:</strong> "partitioned, Parquet, data lake, petabyte-scale, partition pruning"
+  </div>
+
+  <h3>Two Paths — How to Explain</h3>
+
+  <div class="flow-diagram">
+    <strong>⚡ Fast Path (real-time)</strong><br>
+    Kafka → Spark → <span style="color:#0090aa;font-weight:700;">Pinot</span> → Live Dashboard<br>
+    <em>"Show me orders in the last 5 minutes"</em><br><br>
+    <strong>📦 Historical Path (batch)</strong><br>
+    Kafka → Spark → <span style="color:#c49200;font-weight:700;">Hive</span> → Batch Reports<br>
+    <em>"Show me total revenue for all of 2025"</em>
+  </div>
+
+  <div class="page-footer">
+    Data Engineering Pipeline — Complete Guide • Built for Learning &amp; Interview Preparation • August 2026
+  </div>
+</div>
+
+</body>
+</html>
