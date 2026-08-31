@@ -1,0 +1,2521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Glue ETL Pipeline Visualizer & Deep Inspector</title>
+<style>
+  :root {
+    --bg-dark: #0c1017;
+    --bg-surface: #141b26;
+    --bg-card: #1a2332;
+    --bg-card-hover: #222e42;
+    --border: #283548;
+    --border-bright: #3e506d;
+    --aws-orange: #ff9900;
+    --glue-purple: #8c4fff;
+    --glue-purple-glow: rgba(140, 79, 255, 0.45);
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --green: #10b981;
+    --green-glow: rgba(16, 185, 129, 0.35);
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --blue: #3b82f6;
+    --cyan: #06b6d4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  header {
+    background: #111722;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-badge {
+    background: linear-gradient(135deg, var(--aws-orange), #ea580c);
+    color: #fff;
+    font-weight: 800;
+    font-size: 16px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(255, 153, 0, 0.35);
+  }
+
+  .brand-text h1 {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .brand-text h1 span {
+    color: var(--aws-orange);
+  }
+
+  .brand-text p {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: #1e2838;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+
+  .btn:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-bright);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--glue-purple), #6d28d9);
+    border-color: transparent;
+    color: white;
+    box-shadow: 0 3px 12px var(--glue-purple-glow);
+  }
+
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #9d66ff, #7c3aed);
+    box-shadow: 0 5px 18px rgba(140, 79, 255, 0.6);
+    transform: translateY(-1px);
+  }
+
+  .btn-warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.4);
+  }
+
+  .btn-sm {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  /* Main Container */
+  main {
+    flex: 1;
+    max-width: 1600px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  /* Section cards */
+  .card-container {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Scenario Selector */
+  .scenarios-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 12px;
+  }
+
+  .scenario-card {
+    background: #111823;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .scenario-card:hover {
+    border-color: var(--border-bright);
+    background: #16202e;
+  }
+
+  .scenario-card.active {
+    border-color: var(--glue-purple);
+    background: rgba(140, 79, 255, 0.09);
+    box-shadow: 0 0 16px rgba(140, 79, 255, 0.2);
+  }
+
+  .scenario-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .scenario-desc {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  /* Execution Controls Strip */
+  .controls-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    background: #111722;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 18px;
+  }
+
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .divider {
+    width: 1px;
+    height: 28px;
+    background: var(--border);
+  }
+
+  .speed-pill-group {
+    display: flex;
+    background: #090d14;
+    padding: 3px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+  }
+
+  .speed-pill {
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  .speed-pill.active {
+    background: var(--glue-purple);
+    color: white;
+  }
+
+  .stat-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .stat-pill .label {
+    color: var(--text-dim);
+  }
+
+  .stat-pill .val {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  .status-badge {
+    margin-left: auto;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid transparent;
+  }
+
+  .status-badge.idle { background: #1a2332; color: var(--text-muted); border-color: var(--border); }
+  .status-badge.running { background: rgba(140, 79, 255, 0.2); color: #c084fc; border-color: rgba(140, 79, 255, 0.5); }
+  .status-badge.paused { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border-color: rgba(245, 158, 11, 0.5); }
+  .status-badge.succeeded { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.5); }
+
+  .pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: blink 1.2s infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.8); }
+  }
+
+  /* Node Quick Selector Ribbon */
+  .node-ribbon {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+  }
+
+  .node-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #111823;
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+  }
+
+  .node-pill:hover {
+    border-color: #38bdf8;
+    color: #fff;
+    background: #182333;
+  }
+
+  .node-pill.active {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+  }
+
+  /* Interactive DAG Board Layout */
+  .dag-board-wrapper {
+    background: #090d14;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 20px;
+    position: relative;
+    overflow-x: auto;
+    min-height: 380px;
+  }
+
+  .dag-canvas-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1400px;
+    height: 380px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .dag-nodes-layer {
+    position: relative;
+    width: 1400px;
+    height: 340px;
+    z-index: 2;
+  }
+
+  .html-dag-node {
+    position: absolute;
+    width: 168px;
+    height: 72px;
+    background: #131b27;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    user-select: none;
+  }
+
+  .html-dag-node:hover {
+    transform: translateY(-3px);
+    border-color: #38bdf8;
+    box-shadow: 0 8px 20px rgba(56, 189, 248, 0.25);
+  }
+
+  .html-dag-node.selected {
+    border-color: #38bdf8 !important;
+    border-width: 2px !important;
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.45) !important;
+    background: #182333 !important;
+  }
+
+  .html-dag-node.running {
+    border-color: var(--glue-purple) !important;
+    border-width: 2px !important;
+    box-shadow: 0 0 16px var(--glue-purple-glow) !important;
+  }
+
+  .html-dag-node.succeeded {
+    border-color: var(--green) !important;
+  }
+
+  .node-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .node-title-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .node-name {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 110px;
+  }
+
+  .node-sub-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 9.5px;
+    color: var(--text-muted);
+  }
+
+  .node-status-tag {
+    font-size: 8px;
+    font-weight: 800;
+    font-family: monospace;
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  /* Deep Node Inspector Panel (Docked) */
+  .inspector-card {
+    background: #141b26;
+    border: 1px solid var(--border-bright);
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    overflow: hidden;
+  }
+
+  .inspector-header {
+    background: #182232;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .inspector-title {
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .inspector-nav {
+    display: flex;
+    background: #0f1520;
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    overflow-x: auto;
+  }
+
+  .inspector-tab {
+    padding: 12px 18px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .inspector-tab:hover {
+    color: #fff;
+  }
+
+  .inspector-tab.active {
+    color: #fff;
+    border-bottom-color: var(--glue-purple);
+    background: rgba(140, 79, 255, 0.08);
+  }
+
+  .inspector-content {
+    padding: 20px 24px;
+    max-height: 600px;
+    overflow-y: auto;
+  }
+
+  /* Info Grid inside Inspector */
+  .info-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .info-summary-box {
+    background: #0c121a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+
+  .info-summary-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+
+  .info-summary-val {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #fff;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  /* Step by Step Flow Box */
+  .process-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 16px 0;
+  }
+
+  .step-item {
+    background: #0c121a;
+    border-left: 3px solid var(--glue-purple);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    font-size: 12.5px;
+  }
+
+  .step-item-title {
+    font-weight: 700;
+    color: #cbd5e1;
+    margin-bottom: 3px;
+  }
+
+  .step-item-desc {
+    color: var(--text-muted);
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+
+  /* Tables */
+  .table-responsive {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #0a0e16;
+  }
+
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11.5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  table.data-table th {
+    background: #111722;
+    color: var(--text-muted);
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  table.data-table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    color: var(--text-main);
+    white-space: nowrap;
+  }
+
+  table.data-table tr:hover td {
+    background: rgba(255,255,255,0.03);
+  }
+
+  .tag {
+    background: rgba(6, 182, 212, 0.15);
+    color: var(--cyan);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .tag-purple {
+    background: rgba(140, 79, 255, 0.15);
+    color: #c084fc;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .code-container {
+    background: #080c12;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+
+  /* Metrics Grid */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+  }
+
+  .metric-card {
+    background: #111823;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 12px 14px;
+  }
+
+  .metric-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+
+  .metric-val {
+    font-size: 19px;
+    font-weight: 800;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #fff;
+  }
+
+  .metric-unit {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: 4px;
+    font-weight: normal;
+  }
+
+  /* Log Terminal */
+  .log-terminal {
+    background: #080c12;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    overflow: hidden;
+  }
+
+  .log-header {
+    background: #101620;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .log-search {
+    background: #06090e;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    color: #fff;
+    font-size: 11px;
+    outline: none;
+    width: 170px;
+  }
+
+  .log-search:focus {
+    border-color: var(--glue-purple);
+  }
+
+  .log-select {
+    background: #06090e;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: #fff;
+    font-size: 11px;
+    outline: none;
+  }
+
+  .log-window {
+    height: 220px;
+    overflow-y: auto;
+    padding: 10px 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 11.5px;
+    line-height: 1.6;
+  }
+
+  .log-line {
+    display: flex;
+    gap: 10px;
+    padding: 2px 0;
+  }
+
+  .log-line:hover {
+    background: rgba(255,255,255,0.03);
+  }
+
+  .log-ts {
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .log-badge {
+    padding: 0 6px;
+    border-radius: 4px;
+    font-size: 9.5px;
+    font-weight: 700;
+    flex-shrink: 0;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .log-badge.INFO { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+  .log-badge.WARN { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+  .log-badge.ERROR { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+  .log-badge.DEBUG { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+  .log-badge.SUCCESS { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+
+  .log-src {
+    color: #38bdf8;
+    flex-shrink: 0;
+    width: 105px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .log-msg {
+    color: #cbd5e1;
+    word-break: break-word;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.open {
+    display: flex;
+  }
+
+  .modal-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 12px;
+    width: 90vw;
+    max-width: 920px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    overflow: hidden;
+  }
+
+  .modal-header {
+    background: #111722;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .modal-title {
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .modal-tabs {
+    display: flex;
+    background: #0f1520;
+    border-bottom: 1px solid var(--border);
+    padding: 0 14px;
+  }
+
+  .modal-tab {
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+  }
+
+  .modal-tab.active {
+    color: #fff;
+    border-bottom-color: var(--glue-purple);
+  }
+
+  .modal-body {
+    padding: 18px 20px;
+    overflow-y: auto;
+    flex: 1;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-badge">⚡</div>
+    <div class="brand-text">
+      <h1>AWS Glue <span>Pipeline Visualizer</span></h1>
+      <p>Interactive Architecture, DynamicFrames & Live Execution Engine</p>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn" onclick="openExportModal()">📥 Export Pipeline Code</button>
+  </div>
+</header>
+
+<main>
+  <!-- Scenarios -->
+  <section>
+    <div class="section-title">Select Pipeline Architecture Scenario</div>
+    <div class="scenarios-grid" id="scenariosGrid">
+      <!-- Injected via JS -->
+    </div>
+  </section>
+
+  <!-- Controls Bar -->
+  <section class="controls-bar">
+    <div class="control-group">
+      <button class="btn btn-primary" id="btnExecute" onclick="toggleExecute()">
+        <span id="btnIcon">▶</span> <span id="btnText">Execute Pipeline</span>
+      </button>
+      <button class="btn btn-sm" id="btnReset" onclick="resetPipeline()" style="display:none;">
+        ↺ Reset
+      </button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+      <span style="font-size:11px; color:var(--text-dim); font-weight:700;">SPEED:</span>
+      <div class="speed-pill-group">
+        <button class="speed-pill active" onclick="setSpeed(1, this)">1x</button>
+        <button class="speed-pill" onclick="setSpeed(2, this)">2x</button>
+        <button class="speed-pill" onclick="setSpeed(4, this)">4x</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="stat-pill">
+      <span class="label">Duration:</span>
+      <span class="val" id="statDuration">0.0s</span>
+    </div>
+
+    <div class="stat-pill">
+      <span class="label">DPUs:</span>
+      <span class="val" id="statDpu">5 × G.1X</span>
+    </div>
+
+    <div class="stat-pill">
+      <span class="label">Stages:</span>
+      <span class="val" id="statStages">0 / 10</span>
+    </div>
+
+    <div class="status-badge idle" id="statusBadge">
+      <div class="pulse-dot"></div>
+      <span id="statusBadgeText">READY TO EXECUTE</span>
+    </div>
+  </section>
+
+  <!-- Node Selector Ribbon (Clickable pills) -->
+  <section>
+    <div class="section-title">
+      <span>Pipeline Nodes (Click any node to inspect details)</span>
+      <span style="color:#38bdf8; font-size:11px; font-weight:600;">10 Stages Defined</span>
+    </div>
+    <div class="node-ribbon" id="nodeRibbon">
+      <!-- Injected via JS -->
+    </div>
+  </section>
+
+  <!-- Interactive DAG Visualizer Canvas -->
+  <section class="card-container">
+    <div class="section-title">
+      <span>Pipeline Directed Acyclic Graph (DAG)</span>
+      <span style="font-size:11px; color:#38bdf8; font-weight:600;">Click on any box in the diagram to inspect its schema and data preview</span>
+    </div>
+    <div class="dag-board-wrapper">
+      <svg id="dagCanvasBg" class="dag-canvas-bg" width="1400" height="360"></svg>
+      <div id="dagNodesLayer" class="dag-nodes-layer">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Deep Node Inspector (Docked - Zero Flicker) -->
+  <section class="inspector-card" id="inspectorSection">
+    <div class="inspector-header">
+      <div class="inspector-title">
+        <span id="inspIcon" style="font-size:18px;">🔍</span>
+        <span id="inspTitle">AWS Glue Data Catalog Crawler</span>
+        <span id="inspTypeBadge" class="tag-purple">CATALOG / METADATA</span>
+        <span id="inspStatusBadge" class="tag" style="background:#10b98125; color:#34d399;">IDLE</span>
+      </div>
+      <div style="font-size:11px; color:var(--text-muted);" id="inspSubtitle">
+        Stage 3 of 10 in execution pipeline
+      </div>
+    </div>
+
+    <div class="inspector-nav">
+      <div class="inspector-tab active" id="tabOverview" onclick="switchInspectorTab('overview')">📖 What It Does & How It Works</div>
+      <div class="inspector-tab" id="tabData" onclick="switchInspectorTab('data')">📋 Records & Data Preview</div>
+      <div class="inspector-tab" id="tabCode" onclick="switchInspectorTab('code')">🐍 PySpark DynamicFrame Code</div>
+      <div class="inspector-tab" id="tabSchema" onclick="switchInspectorTab('schema')">📐 Catalog Schema & Types</div>
+      <div class="inspector-tab" id="tabStorage" onclick="switchInspectorTab('storage')">🗄️ Storage & AWS Infrastructure</div>
+    </div>
+
+    <div class="inspector-content" id="inspectorBody">
+      <!-- Injected via JS -->
+    </div>
+  </section>
+
+  <!-- Live Metrics -->
+  <section class="card-container" id="metricsSection" style="display:none;">
+    <div class="section-title">Live Execution Metrics</div>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Execution Time</div>
+        <div class="metric-val"><span id="mDuration">0.0</span><span class="metric-unit">sec</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">DPU Hours Consumed</div>
+        <div class="metric-val"><span id="mDpuHours">0.0000</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Records In</div>
+        <div class="metric-val"><span id="mRecIn">0</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Records Out</div>
+        <div class="metric-val"><span id="mRecOut">0</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Data Volume Processed</div>
+        <div class="metric-val"><span id="mVolume">0.0</span><span class="metric-unit">MB</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Cluster Throughput</div>
+        <div class="metric-val"><span id="mThroughput">0.0</span><span class="metric-unit">MB/s</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CloudWatch Logs Stream -->
+  <section class="card-container">
+    <div class="section-title">
+      <span>AWS CloudWatch Continuous Log Stream</span>
+      <span id="logCounter" style="font-size:11px; color:var(--text-dim);">(0 events)</span>
+    </div>
+    <div class="log-terminal">
+      <div class="log-header">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="text" id="logSearchInput" class="log-search" placeholder="Search log entries..." oninput="renderLogs()">
+          <select id="logLevelFilter" class="log-select" onchange="renderLogs()">
+            <option value="ALL">All Levels</option>
+            <option value="INFO">INFO</option>
+            <option value="WARN">WARN</option>
+            <option value="ERROR">ERROR</option>
+            <option value="SUCCESS">SUCCESS</option>
+            <option value="DEBUG">DEBUG</option>
+          </select>
+        </div>
+        <button class="btn btn-sm" onclick="clearLogs()">Clear</button>
+      </div>
+      <div class="log-window" id="logWindow">
+        <div style="color:var(--text-dim); text-align:center; padding:45px;">
+          Click "Execute Pipeline" to launch the AWS Glue Job and stream live Spark driver & executor logs...
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Code Export Modal -->
+<div class="modal-overlay" id="exportModal" onclick="closeExportModal()">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">
+        <span>📥</span>
+        <span>Production-Ready AWS Glue Artifacts</span>
+      </div>
+      <button class="btn btn-sm" onclick="closeExportModal()">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <div class="modal-tab active" id="tabExportScript" onclick="switchExportTab('script')">🐍 PySpark ETL Job (glue_etl.py)</div>
+      <div class="modal-tab" id="tabExportCfn" onclick="switchExportTab('cfn')">☁️ CloudFormation Template (glue_infra.yaml)</div>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-bottom:10px;">
+        <button class="btn btn-sm btn-primary" onclick="copyExportCode()">📋 Copy to Clipboard</button>
+        <button class="btn btn-sm" onclick="downloadExportCode()">⬇ Download File</button>
+      </div>
+      <div class="code-container" id="exportCodeBlock"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// SCENARIOS & SAMPLE DATA
+// ==========================================
+const SCENARIOS = [
+  {
+    id: 'happy-path',
+    name: 'Standard E-Commerce ETL',
+    icon: '🛒',
+    desc: 'Clean ingest of S3 CSV orders & RDS customer table → Schema cast → Filter → DynamicFrame Join → Aggregation → S3 Parquet lake & Redshift.',
+    scale: 1,
+    dqAlert: false
+  },
+  {
+    id: 'dq-alert',
+    name: 'Data Quality & Quarantine Anomaly',
+    icon: '🛡️',
+    desc: 'Simulates 25% malformed records violating DQ constraints (invalid quantity/null keys), automatically routed to S3 Quarantine bucket.',
+    scale: 1,
+    dqAlert: true
+  },
+  {
+    id: 'high-scale',
+    name: 'Big Data Scale (5M Records)',
+    icon: '🚀',
+    desc: 'High-throughput execution simulating 10 DPUs (G.2X workers), partition pruning, and multi-stage Spark shuffle across 5,000,000 rows.',
+    scale: 100,
+    dqAlert: false
+  }
+];
+
+const RAW_ORDERS = [
+  { order_id: "ORD-10921", customer_id: "CUST-401", product: "Wireless Headphones", quantity: "2", price: "79.99", order_date: "2026-08-15", status: "completed" },
+  { order_id: "ORD-10922", customer_id: "CUST-402", product: "Mechanical Keyboard", quantity: "1", price: "129.50", order_date: "2026-08-15", status: "completed" },
+  { order_id: "ORD-10923", customer_id: "CUST-403", product: "USB-C Multiport Adapter", quantity: "3", price: "24.99", order_date: "2026-08-16", status: "cancelled" },
+  { order_id: "ORD-10924", customer_id: "CUST-401", product: "UltraWide 4K Monitor", quantity: "1", price: "489.00", order_date: "2026-08-16", status: "completed" },
+  { order_id: "ORD-10925", customer_id: "CUST-405", product: "Ergonomic Desk Chair", quantity: "1", price: "219.00", order_date: "2026-08-17", status: "completed" }
+];
+
+const RAW_CUSTOMERS = [
+  { customer_id: "CUST-401", customer_name: "Sarah Chen", email: "sarah.chen@example.com", region: "us-east-1", tier: "Gold" },
+  { customer_id: "CUST-402", customer_name: "Marcus Vance", email: "m.vance@example.com", region: "us-west-2", tier: "Silver" },
+  { customer_id: "CUST-403", customer_name: "Elena Rostova", email: "elena@example.com", region: "eu-west-1", tier: "Platinum" },
+  { customer_id: "CUST-405", customer_name: "James Wilson", email: "jwilson@example.com", region: "us-east-1", tier: "Bronze" }
+];
+
+const CAST_ORDERS = [
+  { order_id: 10921, customer_id: "CUST-401", product: "Wireless Headphones", quantity: 2, unit_price: 79.99, order_date: "2026-08-15", status: "completed" },
+  { order_id: 10922, customer_id: "CUST-402", product: "Mechanical Keyboard", quantity: 1, unit_price: 129.50, order_date: "2026-08-15", status: "completed" },
+  { order_id: 10923, customer_id: "CUST-403", product: "USB-C Multiport Adapter", quantity: 3, unit_price: 24.99, order_date: "2026-08-16", status: "cancelled" },
+  { order_id: 10924, customer_id: "CUST-401", product: "UltraWide 4K Monitor", quantity: 1, unit_price: 489.00, order_date: "2026-08-16", status: "completed" },
+  { order_id: 10925, customer_id: "CUST-405", product: "Ergonomic Desk Chair", quantity: 1, unit_price: 219.00, order_date: "2026-08-17", status: "completed" }
+];
+
+const FILTERED_ORDERS = CAST_ORDERS.filter(o => o.status === 'completed');
+
+const ENRICHED_ORDERS = [
+  { order_id: 10921, customer_name: "Sarah Chen", region: "us-east-1", tier: "Gold", product: "Wireless Headphones", quantity: 2, unit_price: 79.99, total_amount: 159.98, order_date: "2026-08-15" },
+  { order_id: 10922, customer_name: "Marcus Vance", region: "us-west-2", tier: "Silver", product: "Mechanical Keyboard", quantity: 1, unit_price: 129.50, total_amount: 129.50, order_date: "2026-08-15" },
+  { order_id: 10924, customer_name: "Sarah Chen", region: "us-east-1", tier: "Gold", product: "UltraWide 4K Monitor", quantity: 1, unit_price: 489.00, total_amount: 489.00, order_date: "2026-08-16" },
+  { order_id: 10925, customer_name: "James Wilson", region: "us-east-1", tier: "Bronze", product: "Ergonomic Desk Chair", quantity: 1, unit_price: 219.00, total_amount: 219.00, order_date: "2026-08-17" }
+];
+
+const AGGREGATED_METRICS = [
+  { region: "us-east-1", total_orders: 3, total_revenue: 867.98, avg_order_value: 289.33, total_items_sold: 4 },
+  { region: "us-west-2", total_orders: 1, total_revenue: 129.50, avg_order_value: 129.50, total_items_sold: 1 }
+];
+
+// ==========================================
+// NODE DEFINITIONS
+// ==========================================
+const NODES = [
+  {
+    id: "s3-raw-orders",
+    label: "S3: Raw Orders",
+    type: "Ingest / Source",
+    layer: 0,
+    pos: 0,
+    icon: "🗄️",
+    color: "#10b981",
+    recordsIn: 0,
+    recordsOut: 50000,
+    bytes: 12500000,
+    durationMs: 1800,
+    overview: "Extracts daily raw order batch feeds in CSV/JSON format from the Amazon S3 landing zone bucket.",
+    howItWorks: [
+      { title: "S3 Prefix Scan", desc: "List all object keys under 's3://ecommerce-data-lake/landing/orders/' recursively." },
+      { title: "DynamicFrame Partitioning", desc: "Initializes AWS Glue DynamicFrame reader with distributed multi-part CSV deserializer." },
+      { title: "Header Extraction", desc: "Parses CSV column headers ('order_id', 'customer_id', 'price', etc.) and establishes raw string schema." }
+    ],
+    storage: {
+      location: "s3://ecommerce-data-lake/landing/orders/year=2026/month=08/",
+      format: "CSV (Gzip compressed, UTF-8, Comma delimited)",
+      role: "arn:aws:iam::123456789012:role/GlueS3IngestionRole",
+      partitions: "year=2026, month=08, day=15"
+    },
+    inData: [],
+    outData: RAW_ORDERS,
+    schema: [
+      { col: "order_id", type: "string", null: "NO", desc: "Raw order identifier" },
+      { col: "customer_id", type: "string", null: "NO", desc: "Reference customer ID" },
+      { col: "product", type: "string", null: "NO", desc: "Item description" },
+      { col: "quantity", type: "string", null: "YES", desc: "Raw string count" },
+      { col: "price", type: "string", null: "YES", desc: "Raw price string" },
+      { col: "order_date", type: "string", null: "NO", desc: "ISO date format" },
+      { col: "status", type: "string", null: "NO", desc: "Order fulfillment status" }
+    ],
+    code: `# 1. Extract raw order CSVs into AWS Glue DynamicFrame
+orders_dyf = glueContext.create_dynamic_frame.from_options(
+    connection_type="s3",
+    format="csv",
+    connection_options={
+        "paths": ["s3://ecommerce-data-lake/landing/orders/"],
+        "recurse": True
+    },
+    format_options={"withHeader": True, "separator": ","},
+    transformation_ctx="orders_dyf"
+)
+print(f"Total raw orders extracted: {orders_dyf.count()}")`
+  },
+  {
+    id: "rds-customers",
+    label: "RDS: Customers",
+    type: "Ingest / JDBC",
+    layer: 0,
+    pos: 1,
+    icon: "🗃️",
+    color: "#3b82f6",
+    recordsIn: 0,
+    recordsOut: 10000,
+    bytes: 4200000,
+    durationMs: 2200,
+    overview: "Connects to relational Amazon RDS (PostgreSQL/MySQL) to extract up-to-date customer dimension records.",
+    howItWorks: [
+      { title: "Glue Catalog JDBC Connection", desc: "Uses secure AWS Secrets Manager credentials via Glue Connection 'rds-ecommerce-conn'." },
+      { title: "Parallel Query Partitioning", desc: "Executes partitioned SELECT queries on primary key 'customer_id' to parallelize database reading across Spark workers." },
+      { title: "In-Memory Frame Conversion", desc: "Converts JDBC ResultSet into distributed DynamicFrame for fast downstream joining." }
+    ],
+    storage: {
+      location: "jdbc:postgresql://rds-cluster-01.internal.vpc:5432/ecommerce_db",
+      format: "PostgreSQL 15 Relational Table ('public.customers')",
+      role: "arn:aws:iam::123456789012:role/GlueRDSSecretManagerRole",
+      partitions: "Hash partitioned across 4 worker threads"
+    },
+    inData: [],
+    outData: RAW_CUSTOMERS,
+    schema: [
+      { col: "customer_id", type: "string", null: "NO", desc: "Primary key" },
+      { col: "customer_name", type: "string", null: "NO", desc: "Customer full name" },
+      { col: "email", type: "string", null: "YES", desc: "Contact email address" },
+      { col: "region", type: "string", null: "NO", desc: "AWS sales region (e.g. us-east-1)" },
+      { col: "tier", type: "string", null: "NO", desc: "Loyalty classification (Gold/Silver)" }
+    ],
+    code: `# 2. Read customers table via Glue Data Catalog JDBC Connection
+customers_dyf = glueContext.create_dynamic_frame.from_catalog(
+    database="ecommerce_catalog_db",
+    table_name="rds_customers",
+    transformation_ctx="customers_dyf"
+)
+print(f"Total customers loaded from RDS: {customers_dyf.count()}")`
+  },
+  {
+    id: "glue-crawler",
+    label: "Glue Crawler",
+    type: "Catalog / Metadata",
+    layer: 1,
+    pos: 0,
+    icon: "🔍",
+    color: "#f59e0b",
+    recordsIn: 50000,
+    recordsOut: 50000,
+    bytes: 12500000,
+    durationMs: 2500,
+    overview: "Automatically discovers data structure, detects partition paths in Amazon S3, and catalogs table metadata in the AWS Glue Data Catalog.",
+    howItWorks: [
+      { title: "Metadata Discovery", desc: "Inspects S3 prefix folders, identifying new subdirectories and file formats without moving data." },
+      { title: "Schema Inference & SerDe Detection", desc: "Analyzes 50,000 records using built-in classifiers to infer data types (string, numeric, timestamp) and registers SerDe 'OpenCSVSerde'." },
+      { title: "Data Catalog Versioning", desc: "Updates table definition 'raw_orders' inside database 'ecommerce_catalog_db', adding partition keys (year, month, day)." },
+      { title: "Schema Evolution Handling", desc: "Detects schema drift and records audit changes in AWS CloudTrail and CloudWatch." }
+    ],
+    storage: {
+      location: "AWS Glue Data Catalog → Database: 'ecommerce_catalog_db' → Table: 'raw_orders'",
+      format: "AWS Glue Table Metadata & SerDe definition",
+      role: "arn:aws:iam::123456789012:role/AWSGlueServiceRole-Crawler",
+      partitions: "Partition Keys registered: year (string), month (string)"
+    },
+    inData: RAW_ORDERS,
+    outData: RAW_ORDERS,
+    schema: [
+      { col: "database_name", type: "string", null: "NO", desc: "ecommerce_catalog_db" },
+      { col: "table_name", type: "string", null: "NO", desc: "raw_orders" },
+      { col: "partition_keys", type: "array[string]", null: "NO", desc: "['year', 'month']" },
+      { col: "classification", type: "string", null: "NO", desc: "csv" },
+      { col: "compression", type: "string", null: "NO", desc: "gzip / none" }
+    ],
+    code: `# Glue Crawler metadata cataloging configuration
+# Crawler Name: 'ecommerce-orders-crawler'
+# Target Database: 'ecommerce_catalog_db'
+# Targets: ['s3://ecommerce-data-lake/landing/orders/']
+# Schema Change Policy: UPDATE_IN_DATABASE
+# Partition Detection: Auto-discover partitions
+#
+# Registered Table 'raw_orders' with 7 columns & 2 partition keys.`
+  },
+  {
+    id: "data-quality",
+    label: "Data Quality Rules",
+    type: "Validation / Governance",
+    layer: 2,
+    pos: 0,
+    icon: "🛡️",
+    color: "#8c4fff",
+    recordsIn: 50000,
+    recordsOut: 48500,
+    bytes: 12500000,
+    durationMs: 2800,
+    overview: "Runs AWS Glue Data Quality checks. Evaluates rules for completeness, range, and uniqueness, isolating corrupt records to an S3 quarantine bucket.",
+    howItWorks: [
+      { title: "Rule Set Evaluation", desc: "Applies declarative DQDL rules (e.g. 'ColumnValues quantity > 0', 'Completeness customer_id >= 0.99')." },
+      { title: "Row-Level Classification", desc: "Splits DynamicFrame into 'Passed' and 'Failed' data streams based on evaluation outcomes." },
+      { title: "Anomaly Quarantine", desc: "Non-compliant records are saved to 's3://ecommerce-data-lake/quarantine/' for data engineering review." },
+      { title: "CloudWatch Metric Publishing", desc: "Emits DQ pass percentage metrics and triggers Amazon SNS alerts if error rate exceeds threshold." }
+    ],
+    storage: {
+      location: "Good Stream: Next Node | Quarantine: s3://ecommerce-data-lake/quarantine/orders/",
+      format: "DynamicFrame Stream + JSON Quarantine Sink",
+      role: "arn:aws:iam::123456789012:role/GlueDataQualityRole",
+      partitions: "Quarantine partitioned by 'evaluation_date=2026-08-31'"
+    },
+    inData: RAW_ORDERS,
+    outData: RAW_ORDERS,
+    schema: [
+      { col: "order_id", type: "string", null: "NO", desc: "IsUnique 'order_id' verified" },
+      { col: "quantity", type: "string", null: "NO", desc: "ColumnValues 'quantity' > 0 verified" },
+      { col: "price", type: "string", null: "NO", desc: "ColumnValues 'price' > 0 verified" },
+      { col: "dataQualityResult", type: "string", null: "NO", desc: "'Passed' | 'Failed'" }
+    ],
+    code: `from awsglue.transforms import EvaluateDataQuality
+
+# Define AWS Glue DQDL Ruleset
+ruleset = """
+    Rules = [
+        ColumnValues "order_id" != NULL,
+        IsUnique "order_id",
+        ColumnValues "quantity" > 0,
+        ColumnValues "price" > 0,
+        Completeness "customer_id" >= 0.99
+    ]
+"""
+
+dq_results = EvaluateDataQuality.apply(
+    frame=orders_dyf,
+    ruleset=ruleset,
+    publishing_options={"enableDataQualityCloudWatchMetrics": True}
+)
+
+# Route good records and quarantine anomalies
+good_orders = dq_results.filter(lambda r: r["dataQualityEvaluationResult"] == "Passed")
+bad_orders = dq_results.filter(lambda r: r["dataQualityEvaluationResult"] == "Failed")
+print(f"Passed: {good_orders.count()} | Quarantined: {bad_orders.count()}")`
+  },
+  {
+    id: "apply-mapping",
+    label: "ApplyMapping",
+    type: "Transformation",
+    layer: 3,
+    pos: 0,
+    icon: "🔀",
+    color: "#06b6d4",
+    recordsIn: 48500,
+    recordsOut: 48500,
+    bytes: 12000000,
+    durationMs: 1900,
+    overview: "Applies schema casting and column normalization, converting raw string types into strictly typed schema elements (long, double, date).",
+    howItWorks: [
+      { title: "Column Name Mapping", desc: "Renames source field 'price' to standardized analytics name 'unit_price'." },
+      { title: "Data Type Casting", desc: "Converts 'order_id' from string to long integer, 'quantity' to int, and 'price' to 64-bit double precision." },
+      { title: "Date Parsing", desc: "Parses ISO-8601 string '2026-08-15' into native Spark DateType for partition indexing." }
+    ],
+    storage: {
+      location: "Spark Memory RDD Partition Storage",
+      format: "Typed DynamicFrame Schema",
+      role: "Glue Context Execution Worker Pool",
+      partitions: "Preserved 12 worker partitions"
+    },
+    inData: RAW_ORDERS,
+    outData: CAST_ORDERS,
+    schema: [
+      { col: "order_id", type: "long", null: "NO", desc: "Converted from string → 64-bit integer" },
+      { col: "customer_id", type: "string", null: "NO", desc: "Foreign customer key" },
+      { col: "product", type: "string", null: "NO", desc: "Item description" },
+      { col: "quantity", type: "int", null: "NO", desc: "Converted from string → 32-bit integer" },
+      { col: "unit_price", type: "double", null: "NO", desc: "Converted from string → IEEE 754 float" },
+      { col: "order_date", type: "date", null: "NO", desc: "Parsed Calendar Date" },
+      { col: "status", type: "string", null: "NO", desc: "Status string" }
+    ],
+    code: `from awsglue.transforms import ApplyMapping
+
+mapped_dyf = ApplyMapping.apply(
+    frame=good_orders,
+    mappings=[
+        ("order_id", "string", "order_id", "long"),
+        ("customer_id", "string", "customer_id", "string"),
+        ("product", "string", "product", "string"),
+        ("quantity", "string", "quantity", "int"),
+        ("price", "string", "unit_price", "double"),
+        ("order_date", "string", "order_date", "date"),
+        ("status", "string", "status", "string")
+    ],
+    transformation_ctx="mapped_dyf"
+)`
+  },
+  {
+    id: "filter-orders",
+    label: "Filter Validated",
+    type: "Transformation",
+    layer: 3,
+    pos: 1,
+    icon: "🔽",
+    color: "#ec4899",
+    recordsIn: 48500,
+    recordsOut: 42000,
+    bytes: 10500000,
+    durationMs: 1400,
+    overview: "Filters dataset using row predicates to retain only completed transactions for revenue aggregation.",
+    howItWorks: [
+      { title: "Predicate Evaluation", desc: "Applies Boolean expression: row['status'] == 'completed'." },
+      { title: "Exclusion of Non-Revenue Rows", desc: "Drops cancelled, refunded, or test checkout orders from downstream reporting." },
+      { title: "Memory Compaction", desc: "Compacts surviving 42,000 records into optimized Spark memory buffers." }
+    ],
+    storage: {
+      location: "Spark Executor In-Memory Storage",
+      format: "DynamicFrame Filtered RDD",
+      role: "Glue Context Execution Worker Pool",
+      partitions: "Partition pruning applied"
+    },
+    inData: CAST_ORDERS,
+    outData: FILTERED_ORDERS,
+    schema: [
+      { col: "status", type: "string", null: "NO", desc: "Filtered strictly on: status == 'completed'" }
+    ],
+    code: `from awsglue.transforms import Filter
+
+filtered_orders = Filter.apply(
+    frame=mapped_dyf,
+    f=lambda row: row["status"] == "completed",
+    transformation_ctx="filtered_orders"
+)
+print(f"Surviving completed orders: {filtered_orders.count()}")`
+  },
+  {
+    id: "join-customers",
+    label: "Join & Enriched",
+    type: "Transformation",
+    layer: 4,
+    pos: 0,
+    icon: "🔗",
+    color: "#f97316",
+    recordsIn: 52000,
+    recordsOut: 41800,
+    bytes: 18400000,
+    durationMs: 3800,
+    overview: "Performs DynamicFrame Inner Join between completed orders and RDS customers, calculating derived line total amounts.",
+    howItWorks: [
+      { title: "Broadcast Hash Join Optimization", desc: "Broadcasts the smaller 10,000-row customer dimension to all worker nodes, eliminating expensive network shuffles." },
+      { title: "Key Matching", desc: "Matches orders['customer_id'] == customers['customer_id']." },
+      { title: "Enrichment & Calculated Columns", desc: "Appends customer name, region, and tier; computes 'total_amount = quantity * unit_price'." }
+    ],
+    storage: {
+      location: "Spark DataFrame Cache Partition",
+      format: "Enriched Multi-Source DynamicFrame",
+      role: "Glue Spark Worker Cluster",
+      partitions: "Distributed across all allocated DPUs"
+    },
+    inData: FILTERED_ORDERS,
+    outData: ENRICHED_ORDERS,
+    schema: [
+      { col: "order_id", type: "long", null: "NO", desc: "Primary transaction ID" },
+      { col: "customer_name", type: "string", null: "NO", desc: "Joined customer full name" },
+      { col: "region", type: "string", null: "NO", desc: "Customer sales region" },
+      { col: "tier", type: "string", null: "NO", desc: "Customer membership tier" },
+      { col: "total_amount", type: "double", null: "NO", desc: "Calculated: quantity * unit_price" }
+    ],
+    code: `from awsglue.transforms import Join
+from pyspark.sql import functions as F
+
+enriched_dyf = Join.apply(
+    frame1=filtered_orders,
+    frame2=customers_dyf,
+    keys1=["customer_id"],
+    keys2=["customer_id"],
+    transformation_ctx="enriched_dyf"
+)
+
+# Compute line total amount
+enriched_df = enriched_dyf.toDF().withColumn(
+    "total_amount", F.col("quantity") * F.col("unit_price")
+)
+enriched_dyf = DynamicFrame.fromDF(enriched_df, glueContext, "enriched_dyf")`
+  },
+  {
+    id: "aggregate-metrics",
+    label: "Aggregate by Region",
+    type: "Aggregation",
+    layer: 5,
+    pos: 0,
+    icon: "📊",
+    color: "#14b8a6",
+    recordsIn: 41800,
+    recordsOut: 4,
+    bytes: 18400000,
+    durationMs: 2400,
+    overview: "Computes executive KPIs: total regional orders, gross revenue, average order value (AOV), and total item units.",
+    howItWorks: [
+      { title: "Shuffle Hash Grouping", desc: "Groups 41,800 records by 'region' across Spark shuffle partitions." },
+      { title: "Multi-Metric Aggregations", desc: "Computes COUNT(order_id), SUM(total_amount), AVG(total_amount), and SUM(quantity)." },
+      { title: "Summary Frame Creation", desc: "Generates a compact, high-performance summary table ready for instant BI dashboard consumption." }
+    ],
+    storage: {
+      location: "Spark Memory → Amazon Redshift Staging Table",
+      format: "Aggregated Summary DynamicFrame",
+      role: "Glue Redshift Connector",
+      partitions: "Consolidated into 1 output partition"
+    },
+    inData: ENRICHED_ORDERS,
+    outData: AGGREGATED_METRICS,
+    schema: [
+      { col: "region", type: "string", null: "NO", desc: "Territory group key" },
+      { col: "total_orders", type: "long", null: "NO", desc: "Total completed transactions" },
+      { col: "total_revenue", type: "double", null: "NO", desc: "Gross sum of sales amount" },
+      { col: "avg_order_value", type: "double", null: "NO", desc: "Mean basket size" },
+      { col: "total_items_sold", type: "long", null: "NO", desc: "Quantity units sum" }
+    ],
+    code: `agg_df = enriched_df.groupBy("region").agg(
+    F.count("order_id").alias("total_orders"),
+    F.sum("total_amount").alias("total_revenue"),
+    F.avg("total_amount").alias("avg_order_value"),
+    F.sum("quantity").alias("total_items_sold")
+)
+agg_dyf = DynamicFrame.fromDF(agg_df, glueContext, "agg_dyf")`
+  },
+  {
+    id: "s3-curated-lake",
+    label: "S3: Curated Parquet",
+    type: "Storage Sink",
+    layer: 6,
+    pos: 0,
+    icon: "📁",
+    color: "#10b981",
+    recordsIn: 41800,
+    recordsOut: 41800,
+    bytes: 7800000,
+    durationMs: 2200,
+    overview: "Persists the full enriched granular dataset into the S3 Curated Data Lakehouse layer in Apache Parquet format.",
+    howItWorks: [
+      { title: "Columnar Storage Serialization", desc: "Serializes records into Apache Parquet format with columnar encoding and dictionary compression." },
+      { title: "Snappy Compression", desc: "Compresses file blocks using Google Snappy for fast query decompression in Amazon Athena." },
+      { title: "Dynamic Hive Partitioning", desc: "Writes files into S3 folder layout: 's3://ecommerce-data-lake/curated/orders/order_date=YYYY-MM-DD/'." },
+      { title: "Atomic Job Commit", desc: "Uses AWS Glue S3 Optimized Committer to prevent partial write failures." }
+    ],
+    storage: {
+      location: "s3://ecommerce-data-lake/curated/orders/order_date=2026-08-15/",
+      format: "Apache Parquet (.parquet), Snappy compression, Hive Partitioning",
+      role: "arn:aws:iam::123456789012:role/GlueDataLakeWriterRole",
+      partitions: "Partitioned by 'order_date' (date)"
+    },
+    inData: ENRICHED_ORDERS,
+    outData: ENRICHED_ORDERS,
+    schema: [
+      { col: "target_format", type: "glueparquet", null: "NO", desc: "Apache Parquet" },
+      { col: "compression", type: "string", null: "NO", desc: "snappy" },
+      { col: "partitionKeys", type: "list[string]", null: "NO", desc: "['order_date']" }
+    ],
+    code: `glueContext.write_dynamic_frame.from_options(
+    frame=enriched_dyf,
+    connection_type="s3",
+    format="glueparquet",
+    connection_options={
+        "path": "s3://ecommerce-data-lake/curated/orders/",
+        "partitionKeys": ["order_date"]
+    },
+    format_options={"compression": "snappy"},
+    transformation_ctx="s3_curated_sink"
+)`
+  },
+  {
+    id: "redshift-analytics",
+    label: "Amazon Redshift",
+    type: "Warehouse Sink",
+    layer: 6,
+    pos: 1,
+    icon: "🏢",
+    color: "#ef4444",
+    recordsIn: 4,
+    recordsOut: 4,
+    bytes: 1200,
+    durationMs: 2900,
+    overview: "Loads regional KPI aggregates directly into Amazon Redshift data warehouse cluster for executive BI dashboards (QuickSight/Tableau).",
+    howItWorks: [
+      { title: "S3 Manifest Staging", desc: "Stages aggregate micro-batches in temporary S3 bucket 's3://ecommerce-data-lake/temp/redshift/'." },
+      { title: "Pre-Actions Execution", desc: "Executes DDL: TRUNCATE TABLE analytics.regional_sales_summary." },
+      { title: "Parallel COPY Command", desc: "Dispatches high-speed Redshift COPY command across cluster slice leaders." },
+      { title: "Transaction Commit", desc: "Commits relational warehouse transaction and updates BI query views." }
+    ],
+    storage: {
+      location: "redshift-dw-cluster.c0x9.us-east-1.redshift.amazonaws.com:5439/analytics_dw",
+      format: "Amazon Redshift Columnar Storage Table: 'analytics.regional_sales_summary'",
+      role: "arn:aws:iam::123456789012:role/GlueRedshiftDWRole",
+      partitions: "DISTSTYLE AUTO, SORTKEY (region)"
+    },
+    inData: AGGREGATED_METRICS,
+    outData: AGGREGATED_METRICS,
+    schema: [
+      { col: "dbtable", type: "string", null: "NO", desc: "analytics.regional_sales_summary" },
+      { col: "preactions", type: "string", null: "NO", desc: "TRUNCATE TABLE analytics.regional_sales_summary" },
+      { col: "connectionName", type: "string", null: "NO", desc: "redshift-dw-cluster" }
+    ],
+    code: `glueContext.write_dynamic_frame.from_options(
+    frame=agg_dyf,
+    connection_type="redshift",
+    connection_options={
+        "redshiftTmpDir": "s3://ecommerce-data-lake/temp/redshift/",
+        "useConnectionProperties": "true",
+        "dbtable": "analytics.regional_sales_summary",
+        "connectionName": "redshift-dw-cluster",
+        "preactions": "TRUNCATE TABLE analytics.regional_sales_summary"
+    },
+    transformation_ctx="redshift_sink"
+)`
+  }
+];
+
+const EDGES = [
+  { from: "s3-raw-orders", to: "glue-crawler" },
+  { from: "glue-crawler", to: "data-quality" },
+  { from: "data-quality", to: "apply-mapping" },
+  { from: "apply-mapping", to: "filter-orders" },
+  { from: "filter-orders", to: "join-customers" },
+  { from: "rds-customers", to: "join-customers" },
+  { from: "join-customers", to: "aggregate-metrics" },
+  { from: "join-customers", to: "s3-curated-lake" },
+  { from: "aggregate-metrics", to: "redshift-analytics" }
+];
+
+const EXECUTION_SEQUENCE = [
+  "s3-raw-orders",
+  "rds-customers",
+  "glue-crawler",
+  "data-quality",
+  "apply-mapping",
+  "filter-orders",
+  "join-customers",
+  "aggregate-metrics",
+  "s3-curated-lake",
+  "redshift-analytics"
+];
+
+// ==========================================
+// STATE
+// ==========================================
+let currentScenario = SCENARIOS[0];
+let executionStatus = 'idle';
+let activeNodeStates = {};
+let activeEdgeStates = {};
+let selectedNodeId = "glue-crawler";
+let currentInspectorTab = "overview";
+let currentStepIdx = -1;
+let playbackSpeed = 1;
+let logs = [];
+let execTimer = null;
+let tickTimer = null;
+let startTime = 0;
+let accumulatedTime = 0;
+let metrics = { inRec: 0, outRec: 0, bytes: 0, stagesDone: 0 };
+
+// ==========================================
+// INITIALIZATION
+// ==========================================
+function init() {
+  renderScenarioCards();
+  renderNodeRibbon();
+  resetPipeline();
+  selectNode("glue-crawler");
+}
+
+function renderScenarioCards() {
+  const container = document.getElementById('scenariosGrid');
+  container.innerHTML = SCENARIOS.map(s => `
+    <div class="scenario-card ${s.id === currentScenario.id ? 'active' : ''}" onclick="selectScenario('${s.id}')">
+      <div class="scenario-header">
+        <span>${s.icon}</span>
+        <span>${s.name}</span>
+      </div>
+      <div class="scenario-desc">${s.desc}</div>
+    </div>
+  `).join('');
+}
+
+function selectScenario(id) {
+  if (executionStatus === 'running' || executionStatus === 'paused') return;
+  currentScenario = SCENARIOS.find(s => s.id === id);
+  renderScenarioCards();
+  resetPipeline();
+}
+
+function renderNodeRibbon() {
+  const ribbon = document.getElementById('nodeRibbon');
+  ribbon.innerHTML = NODES.map(node => `
+    <div class="node-pill ${node.id === selectedNodeId ? 'active' : ''}" id="pill-${node.id}" onclick="selectNode('${node.id}')">
+      <span>${node.icon}</span>
+      <span>${node.label}</span>
+    </div>
+  `).join('');
+}
+
+// ==========================================
+// DAG RENDERING (HTML Cards + SVG Connectors)
+// ==========================================
+const NW = 168, NH = 72, LAYER_GAP = 188, NODE_GAP = 96, PADDING_X = 40, PADDING_Y = 40;
+
+function getNodeCoordinates(node) {
+  const layerNodes = NODES.filter(n => n.layer === node.layer);
+  const totalHeight = layerNodes.length * NH + (layerNodes.length - 1) * NODE_GAP;
+  const startY = PADDING_Y + (330 - totalHeight) / 2;
+  return {
+    x: PADDING_X + node.layer * LAYER_GAP,
+    y: startY + node.pos * (NH + NODE_GAP)
+  };
+}
+
+function renderDAG() {
+  // 1. Draw SVG Connector Lines
+  const svg = document.getElementById('dagCanvasBg');
+  let svgHtml = `
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#3e506d" />
+      </marker>
+      <marker id="arrow-active" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#8c4fff" />
+      </marker>
+      <filter id="nodeGlow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="4" result="glow" />
+        <feMerge>
+          <feMergeNode in="glow" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </defs>
+  `;
+
+  EDGES.forEach(edge => {
+    const srcNode = NODES.find(n => n.id === edge.from);
+    const tgtNode = NODES.find(n => n.id === edge.to);
+    const p1 = getNodeCoordinates(srcNode);
+    const p2 = getNodeCoordinates(tgtNode);
+
+    const x1 = p1.x + NW;
+    const y1 = p1.y + NH / 2;
+    const x2 = p2.x;
+    const y2 = p2.y + NH / 2;
+    const mx = (x1 + x2) / 2;
+
+    const pathD = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+    const isActive = activeEdgeStates[`${edge.from}_${edge.to}`];
+
+    svgHtml += `
+      <path d="${pathD}" 
+            fill="none" 
+            stroke="${isActive ? '#8c4fff' : '#283548'}" 
+            stroke-width="${isActive ? 2.5 : 1.5}" 
+            ${isActive ? 'stroke-dasharray="6 4"' : ''}
+            marker-end="url(#${isActive ? 'arrow-active' : 'arrow'})" />
+    `;
+
+    if (isActive) {
+      svgHtml += `
+        <circle r="4" fill="#a855f7" filter="url(#nodeGlow)">
+          <animateMotion dur="1.2s" repeatCount="indefinite" path="${pathD}" />
+        </circle>
+      `;
+    }
+  });
+
+  svg.innerHTML = svgHtml;
+
+  // 2. Draw Interactive HTML DOM Nodes (100% Reliable Clicks!)
+  const nodesContainer = document.getElementById('dagNodesLayer');
+  const sc = currentScenario.scale;
+
+  nodesContainer.innerHTML = NODES.map(node => {
+    const pos = getNodeCoordinates(node);
+    const state = activeNodeStates[node.id] || 'idle';
+    const isSelected = selectedNodeId === node.id;
+    const outCount = (node.recordsOut * sc).toLocaleString();
+
+    let tagBg = '#1a2332', tagColor = '#64748b';
+    if (state === 'running') { tagBg = '#8c4fff25'; tagColor = '#c084fc'; }
+    else if (state === 'succeeded') { tagBg = '#10b98125'; tagColor = '#34d399'; }
+    else if (state === 'failed') { tagBg = '#ef444425'; tagColor = '#f87171'; }
+
+    return `
+      <div class="html-dag-node ${state} ${isSelected ? 'selected' : ''}" 
+           style="left: ${pos.x}px; top: ${pos.y}px;"
+           onclick="selectNode('${node.id}')">
+        <div class="node-top-row">
+          <div class="node-title-group">
+            <span style="font-size: 15px;">${node.icon}</span>
+            <span class="node-name" title="${node.label}">${node.label}</span>
+          </div>
+          ${state !== 'idle' ? `
+            <span class="node-status-tag" style="background:${tagBg}; color:${tagColor};">
+              ${state.toUpperCase()}
+            </span>
+          ` : ''}
+        </div>
+        <div class="node-sub-row">
+          <span>${node.type}</span>
+          <span style="font-family: monospace; color: #cbd5e1;">
+            ${state === 'succeeded' ? `${outCount} rows` : `${(node.bytes * sc / 1048576).toFixed(1)} MB`}
+          </span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ==========================================
+// DOCKED NODE INSPECTOR
+// ==========================================
+function selectNode(nodeId) {
+  selectedNodeId = nodeId;
+  renderDAG();
+  renderNodeRibbon();
+  updateInspectorUI();
+}
+
+function updateInspectorUI() {
+  const node = NODES.find(n => n.id === selectedNodeId);
+  if (!node) return;
+
+  const state = activeNodeStates[node.id] || 'idle';
+  const sc = currentScenario.scale;
+  const idx = EXECUTION_SEQUENCE.indexOf(node.id) + 1;
+
+  document.getElementById('inspIcon').textContent = node.icon;
+  document.getElementById('inspTitle').textContent = node.label;
+  document.getElementById('inspTypeBadge').textContent = node.type.toUpperCase();
+  
+  const statusBadge = document.getElementById('inspStatusBadge');
+  statusBadge.textContent = state.toUpperCase();
+  statusBadge.style.background = state === 'succeeded' ? '#10b98125' : state === 'running' ? '#8c4fff25' : '#283548';
+  statusBadge.style.color = state === 'succeeded' ? '#34d399' : state === 'running' ? '#c084fc' : '#94a3b8';
+
+  document.getElementById('inspSubtitle').textContent = `Stage ${idx} of ${EXECUTION_SEQUENCE.length} in AWS Glue Pipeline`;
+
+  renderInspectorTabContent(currentInspectorTab, node);
+}
+
+function switchInspectorTab(tab) {
+  currentInspectorTab = tab;
+  document.getElementById('tabOverview').classList.toggle('active', tab === 'overview');
+  document.getElementById('tabData').classList.toggle('active', tab === 'data');
+  document.getElementById('tabCode').classList.toggle('active', tab === 'code');
+  document.getElementById('tabSchema').classList.toggle('active', tab === 'schema');
+  document.getElementById('tabStorage').classList.toggle('active', tab === 'storage');
+
+  const node = NODES.find(n => n.id === selectedNodeId);
+  if (node) renderInspectorTabContent(tab, node);
+}
+
+function renderInspectorTabContent(tab, node) {
+  const body = document.getElementById('inspectorBody');
+  const sc = currentScenario.scale;
+  const recIn = (node.recordsIn * sc).toLocaleString();
+  const recOut = (node.recordsOut * sc).toLocaleString();
+  const sizeMB = (node.bytes * sc / 1048576).toFixed(2);
+
+  if (tab === 'overview') {
+    let stepsHtml = node.howItWorks.map((step, i) => `
+      <div class="step-item">
+        <div class="step-item-title">${i + 1}. ${step.title}</div>
+        <div class="step-item-desc">${step.desc}</div>
+      </div>
+    `).join('');
+
+    body.innerHTML = `
+      <div class="info-summary-grid">
+        <div class="info-summary-box">
+          <div class="info-summary-label">Component Role</div>
+          <div class="info-summary-val" style="color:var(--cyan);">${node.type}</div>
+        </div>
+        <div class="info-summary-box">
+          <div class="info-summary-label">Records Processed</div>
+          <div class="info-summary-val">${recOut} rows</div>
+        </div>
+        <div class="info-summary-box">
+          <div class="info-summary-label">Estimated Memory/Volume</div>
+          <div class="info-summary-val">${sizeMB} MB</div>
+        </div>
+        <div class="info-summary-box">
+          <div class="info-summary-label">Execution Duration</div>
+          <div class="info-summary-val">${(node.durationMs / 1000).toFixed(1)}s</div>
+        </div>
+      </div>
+
+      <p style="font-size:13px; color:#cbd5e1; line-height:1.6; margin-bottom:16px;">${node.overview}</p>
+
+      <div style="font-size:12px; font-weight:700; color:var(--text-main); margin-bottom:8px;">
+        ⚙️ Step-by-Step Processing & Underlying Execution Lifecycle:
+      </div>
+      <div class="process-steps">
+        ${stepsHtml}
+      </div>
+    `;
+  } else if (tab === 'data') {
+    let inHtml = '';
+    if (node.inData && node.inData.length > 0) {
+      inHtml = `
+        <div style="margin-bottom:18px;">
+          <div style="font-size:12px; font-weight:700; color:#38bdf8; margin-bottom:8px;">
+            📥 Incoming Input DynamicFrame (Sample Preview - ${recIn} records):
+          </div>
+          ${renderTableHtml(node.inData)}
+        </div>
+      `;
+    }
+
+    let outHtml = '';
+    if (node.outData && node.outData.length > 0) {
+      outHtml = `
+        <div>
+          <div style="font-size:12px; font-weight:700; color:#34d399; margin-bottom:8px;">
+            📤 Output Transformed DynamicFrame (Sample Preview - ${recOut} records):
+          </div>
+          ${renderTableHtml(node.outData)}
+        </div>
+      `;
+    }
+
+    body.innerHTML = inHtml + outHtml;
+  } else if (tab === 'code') {
+    body.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span style="font-size:12px; color:var(--text-muted);">AWS Glue PySpark 3.3 DynamicFrame script block for this stage:</span>
+        <button class="btn btn-sm" onclick="navigator.clipboard.writeText(NODES.find(n=>n.id==='${node.id}').code); alert('Code copied to clipboard!');">📋 Copy Code</button>
+      </div>
+      <div class="code-container">${escapeHtml(node.code)}</div>
+    `;
+  } else if (tab === 'schema') {
+    body.innerHTML = `
+      <div style="margin-bottom:12px; font-size:12px; color:var(--text-muted);">AWS Glue Catalog Column Metadata & Schema Specification:</div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr><th>Column Name</th><th>Catalog Data Type</th><th>Nullable</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            ${node.schema.map(s => `
+              <tr>
+                <td style="color:#fff; font-weight:700;">${s.col}</td>
+                <td><span class="tag">${s.type}</span></td>
+                <td style="color:${s.null === 'YES' ? '#fbbf24' : '#34d399'}">${s.null}</td>
+                <td style="color:var(--text-muted);">${s.desc}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (tab === 'storage') {
+    body.innerHTML = `
+      <div class="info-summary-grid">
+        <div class="info-summary-box" style="grid-column: 1 / -1;">
+          <div class="info-summary-label">Storage Location / Endpoint URI</div>
+          <div class="info-summary-val" style="font-size:12px; word-break:break-all; color:#38bdf8;">${node.storage.location}</div>
+        </div>
+        <div class="info-summary-box" style="grid-column: 1 / -1;">
+          <div class="info-summary-label">Data Format & Serialization</div>
+          <div class="info-summary-val" style="font-size:12px;">${node.storage.format}</div>
+        </div>
+        <div class="info-summary-box" style="grid-column: 1 / -1;">
+          <div class="info-summary-label">Partitioning Strategy</div>
+          <div class="info-summary-val" style="font-size:12px; color:#fbbf24;">${node.storage.partitions}</div>
+        </div>
+        <div class="info-summary-box" style="grid-column: 1 / -1;">
+          <div class="info-summary-label">IAM Role & Execution Permissions</div>
+          <div class="info-summary-val" style="font-size:11.5px; color:var(--text-muted);">${node.storage.role}</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function renderTableHtml(dataList) {
+  if (!dataList || dataList.length === 0) return '<div style="color:var(--text-dim); padding:10px;">No records</div>';
+  const cols = Object.keys(dataList[0]);
+  return `
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr>
+        </thead>
+        <tbody>
+          ${dataList.map(row => `
+            <tr>${cols.map(c => `<td>${row[c] !== null ? escapeHtml(String(row[c])) : '<span style="color:#ef4444;">NULL</span>'}</td>`).join('')}</tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ==========================================
+// EXECUTION ENGINE
+// ==========================================
+function toggleExecute() {
+  if (executionStatus === 'idle' || executionStatus === 'completed') {
+    startExecution();
+  } else if (executionStatus === 'running') {
+    pauseExecution();
+  } else if (executionStatus === 'paused') {
+    resumeExecution();
+  }
+}
+
+function startExecution() {
+  resetState();
+  executionStatus = 'running';
+  startTime = Date.now();
+  accumulatedTime = 0;
+  document.getElementById('metricsSection').style.display = 'block';
+
+  const dpuCount = currentScenario.scale >= 100 ? 10 : 5;
+  const dpuType = currentScenario.scale >= 100 ? 'G.2X' : 'G.1X';
+  document.getElementById('statDpu').textContent = `${dpuCount} × ${dpuType}`;
+  document.getElementById('statStages').textContent = `0 / ${EXECUTION_SEQUENCE.length}`;
+
+  addLog('INFO', 'SparkDriver', `Initializing AWS Glue ETL Job: ecommerce_daily_etl (Glue Version 4.0, PySpark 3.3)`);
+  addLog('INFO', 'GlueContext', `Allocated cluster with ${dpuCount} DPUs (${dpuType} instances) across VPC subnet-081e2b4`);
+  addLog('INFO', 'GlueContext', `Scenario: "${currentScenario.name}" initialized with execution sequence [${EXECUTION_SEQUENCE.length} stages]`);
+
+  tickTimer = setInterval(updateTimerTick, 100);
+  updateControlUI();
+  
+  setTimeout(() => runNextStage(0), 400 / playbackSpeed);
+}
+
+function pauseExecution() {
+  executionStatus = 'paused';
+  accumulatedTime += (Date.now() - startTime);
+  clearInterval(tickTimer);
+  clearTimeout(execTimer);
+  updateControlUI();
+  addLog('WARN', 'GlueContext', `Job execution paused by user at stage ${currentStepIdx + 1}`);
+}
+
+function resumeExecution() {
+  executionStatus = 'running';
+  startTime = Date.now();
+  tickTimer = setInterval(updateTimerTick, 100);
+  updateControlUI();
+  addLog('INFO', 'GlueContext', `Job execution resumed at stage ${currentStepIdx + 1}`);
+  runNextStage(currentStepIdx);
+}
+
+function resetPipeline() {
+  clearInterval(tickTimer);
+  clearTimeout(execTimer);
+  resetState();
+  executionStatus = 'idle';
+  updateControlUI();
+  renderDAG();
+  renderNodeRibbon();
+  updateInspectorUI();
+  document.getElementById('metricsSection').style.display = 'none';
+  document.getElementById('statDuration').textContent = '0.0s';
+  document.getElementById('statStages').textContent = `0 / ${EXECUTION_SEQUENCE.length}`;
+}
+
+function resetState() {
+  activeNodeStates = {};
+  activeEdgeStates = {};
+  logs = [];
+  currentStepIdx = -1;
+  metrics = { inRec: 0, outRec: 0, bytes: 0, stagesDone: 0 };
+  NODES.forEach(n => activeNodeStates[n.id] = 'idle');
+  renderLogs();
+  renderDAG();
+}
+
+function runNextStage(index) {
+  if (executionStatus !== 'running') return;
+  currentStepIdx = index;
+
+  if (index >= EXECUTION_SEQUENCE.length) {
+    // Pipeline Finished
+    executionStatus = 'completed';
+    clearInterval(tickTimer);
+    addLog('SUCCESS', 'GlueJob', `🎉 AWS Glue ETL Pipeline completed successfully! All ${EXECUTION_SEQUENCE.length} transformations committed.`);
+    addLog('SUCCESS', 'JobCommit', `Job run committed in ${(metrics.duration || (accumulatedTime + (Date.now() - startTime)) / 1000).toFixed(2)}s.`);
+    updateControlUI();
+    renderDAG();
+    renderNodeRibbon();
+    updateInspectorUI();
+    return;
+  }
+
+  const nodeId = EXECUTION_SEQUENCE[index];
+  const node = NODES.find(n => n.id === nodeId);
+  const sc = currentScenario.scale;
+
+  // Set node and incoming edges to active
+  activeNodeStates[nodeId] = 'running';
+  EDGES.filter(e => e.to === nodeId).forEach(e => activeEdgeStates[`${e.from}_${e.to}`] = true);
+  
+  // Auto-focus active node in inspector
+  selectedNodeId = nodeId;
+
+  addLog('INFO', 'SparkDriver', `Stage ${index + 1}/${EXECUTION_SEQUENCE.length}: Starting [${node.label}] (${node.type})`);
+  renderDAG();
+  renderNodeRibbon();
+  updateInspectorUI();
+  renderLogs();
+  updateControlUI();
+
+  const stepDuration = (node.durationMs * (sc >= 100 ? 1.5 : 1.0)) / playbackSpeed;
+
+  // Intermediate logs
+  execTimer = setTimeout(() => {
+    if (executionStatus !== 'running') return;
+    generateStageLogs(node);
+  }, stepDuration * 0.4);
+
+  // Complete node
+  execTimer = setTimeout(() => {
+    if (executionStatus !== 'running') return;
+
+    activeNodeStates[nodeId] = 'succeeded';
+    EDGES.filter(e => e.to === nodeId).forEach(e => activeEdgeStates[`${e.from}_${e.to}`] = false);
+
+    metrics.inRec += node.recordsIn * sc;
+    metrics.outRec += node.recordsOut * sc;
+    metrics.bytes += node.bytes * sc;
+    metrics.stagesDone++;
+
+    document.getElementById('statStages').textContent = `${metrics.stagesDone} / ${EXECUTION_SEQUENCE.length}`;
+    
+    addLog('SUCCESS', 'DynamicFrame', `Stage ${index + 1} completed: Processed ${(node.recordsOut * sc).toLocaleString()} rows (${(node.bytes * sc / 1048576).toFixed(1)} MB)`);
+
+    renderDAG();
+    renderNodeRibbon();
+    updateInspectorUI();
+    renderLogs();
+    updateLiveMetrics();
+
+    runNextStage(index + 1);
+  }, stepDuration);
+}
+
+function generateStageLogs(node) {
+  const sc = currentScenario.scale;
+  switch(node.id) {
+    case 's3-raw-orders':
+      addLog('INFO', 'S3Source', `Found ${Math.ceil(node.recordsOut * sc / 5000)} objects under s3://ecommerce-data-lake/landing/orders/`);
+      addLog('DEBUG', 'S3Source', `Reading partitions with Snappy/CSV reader [${(node.recordsOut * sc).toLocaleString()} records]`);
+      break;
+    case 'rds-customers':
+      addLog('INFO', 'JDBCSource', `Opening connection pool to postgresql://rds-cluster-01.internal:5432/ecommerce`);
+      addLog('DEBUG', 'JDBCSource', `Pushdown query executed: SELECT * FROM customers [${(node.recordsOut * sc).toLocaleString()} rows]`);
+      break;
+    case 'glue-crawler':
+      addLog('INFO', 'Crawler', `Evaluating Data Catalog schema changes: Database 'ecommerce_catalog_db'`);
+      addLog('INFO', 'Crawler', `Partition keys validated: year=2026, month=08 (Schema consistent)`);
+      break;
+    case 'data-quality':
+      if (currentScenario.dqAlert) {
+        addLog('WARN', 'DataQuality', `⚠️ DQ Constraint Failure: 25% records have quantity <= 0 or null customer keys!`);
+        addLog('WARN', 'DataQuality', `Routing 12,500 quarantined records to s3://ecommerce-data-lake/quarantine/orders/`);
+      } else {
+        addLog('INFO', 'DataQuality', `Evaluated 5 validation rules: 100% compliance on primary keys & date formats`);
+      }
+      break;
+    case 'apply-mapping':
+      addLog('DEBUG', 'DynamicFrame', `Applying schema transformation: Cast string→long(1), string→double(1), string→date(1)`);
+      break;
+    case 'filter-orders':
+      addLog('INFO', 'DynamicFrame', `Filtering predicate: status == 'completed' (Retained ${(node.recordsOut * sc).toLocaleString()} records)`);
+      break;
+    case 'join-customers':
+      addLog('INFO', 'SparkDriver', `Executing BroadcastHashJoin on customer_id key with RDS dimension`);
+      addLog('DEBUG', 'SparkDriver', `Computed derived column 'total_amount' via vectorized expression`);
+      break;
+    case 'aggregate-metrics':
+      addLog('INFO', 'SparkDriver', `Shuffling 200 Spark partitions for GroupBy(region) aggregation`);
+      break;
+    case 's3-curated-lake':
+      addLog('INFO', 'S3Sink', `Writing Parquet files to s3://ecommerce-data-lake/curated/orders/partitionKey=order_date`);
+      break;
+    case 'redshift-analytics':
+      addLog('INFO', 'RedshiftSink', `Executing COPY staging table → TRUNCATE & INSERT analytics.regional_sales_summary`);
+      break;
+  }
+}
+
+function updateTimerTick() {
+  const elapsed = (accumulatedTime + (Date.now() - startTime)) / 1000;
+  document.getElementById('statDuration').textContent = `${elapsed.toFixed(1)}s`;
+  document.getElementById('mDuration').textContent = elapsed.toFixed(1);
+
+  if (elapsed > 0) {
+    const mb = metrics.bytes / 1048576;
+    document.getElementById('mThroughput').textContent = (mb / elapsed).toFixed(1);
+  }
+}
+
+function updateLiveMetrics() {
+  const elapsed = (accumulatedTime + (Date.now() - startTime)) / 1000;
+  const dpuCount = currentScenario.scale >= 100 ? 10 : 5;
+  
+  document.getElementById('mDpuHours').textContent = ((elapsed / 3600) * dpuCount).toFixed(4);
+  document.getElementById('mRecIn').textContent = metrics.inRec.toLocaleString();
+  document.getElementById('mRecOut').textContent = metrics.outRec.toLocaleString();
+  document.getElementById('mVolume').textContent = (metrics.bytes / 1048576).toFixed(1);
+}
+
+function updateControlUI() {
+  const btn = document.getElementById('btnExecute');
+  const btnIcon = document.getElementById('btnIcon');
+  const btnText = document.getElementById('btnText');
+  const btnReset = document.getElementById('btnReset');
+  const badge = document.getElementById('statusBadge');
+  const badgeText = document.getElementById('statusBadgeText');
+
+  btnReset.style.display = executionStatus === 'idle' ? 'none' : 'inline-flex';
+
+  if (executionStatus === 'idle') {
+    btn.className = 'btn btn-primary';
+    btnIcon.textContent = '▶';
+    btnText.textContent = 'Execute Pipeline';
+    badge.className = 'status-badge idle';
+    badgeText.textContent = 'READY TO EXECUTE';
+  } else if (executionStatus === 'running') {
+    btn.className = 'btn btn-warning';
+    btnIcon.textContent = '⏸';
+    btnText.textContent = 'Pause';
+    badge.className = 'status-badge running';
+    badgeText.textContent = 'EXECUTING STAGES...';
+  } else if (executionStatus === 'paused') {
+    btn.className = 'btn btn-primary';
+    btnIcon.textContent = '▶';
+    btnText.textContent = 'Resume';
+    badge.className = 'status-badge paused';
+    badgeText.textContent = 'PAUSED';
+  } else if (executionStatus === 'completed') {
+    btn.className = 'btn btn-primary';
+    btnIcon.textContent = '↺';
+    btnText.textContent = 'Re-Execute Pipeline';
+    badge.className = 'status-badge succeeded';
+    badgeText.textContent = '✓ COMPLETED';
+  }
+}
+
+function setSpeed(s, btn) {
+  playbackSpeed = s;
+  document.querySelectorAll('.speed-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ==========================================
+// CLOUDWATCH LOGS STREAM
+// ==========================================
+function addLog(level, source, message) {
+  const now = new Date();
+  const timeStr = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+  logs.push({ level, source, message, ts: timeStr });
+  renderLogs();
+}
+
+function renderLogs() {
+  const win = document.getElementById('logWindow');
+  const query = document.getElementById('logSearchInput').value.toLowerCase();
+  const filter = document.getElementById('logLevelFilter').value;
+
+  const filtered = logs.filter(l => {
+    if (filter !== 'ALL' && l.level !== filter) return false;
+    if (query && !l.message.toLowerCase().includes(query) && !l.source.toLowerCase().includes(query)) return false;
+    return true;
+  });
+
+  document.getElementById('logCounter').textContent = `(${logs.length} events)`;
+
+  if (filtered.length === 0) {
+    if (logs.length === 0) {
+      win.innerHTML = `<div style="color:var(--text-dim); text-align:center; padding:45px;">Click "Execute Pipeline" to launch the AWS Glue Job and stream live Spark driver & executor logs...</div>`;
+    } else {
+      win.innerHTML = `<div style="color:var(--text-dim); text-align:center; padding:45px;">No logs match your filter criteria</div>`;
+    }
+    return;
+  }
+
+  win.innerHTML = filtered.map(l => `
+    <div class="log-line">
+      <span class="log-ts">${l.ts}</span>
+      <span class="log-badge ${l.level}">${l.level}</span>
+      <span class="log-src">[${l.source}]</span>
+      <span class="log-msg">${escapeHtml(l.message)}</span>
+    </div>
+  `).join('');
+
+  win.scrollTop = win.scrollHeight;
+}
+
+function clearLogs() {
+  logs = [];
+  renderLogs();
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ==========================================
+// CODE EXPORT MODAL
+// ==========================================
+const FULL_GLUE_SCRIPT = `# ==============================================================================
+# AWS GLUE PRODUCTION ETL SCRIPT
+# Job Name: ecommerce_daily_analytics_etl
+# Glue Version: 4.0 (Apache Spark 3.3, Python 3.10)
+# ==============================================================================
+
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+from awsglue.dynamicframe import DynamicFrame
+from pyspark.sql import functions as F
+
+args = getResolvedOptions(sys.argv, ['JOB_NAME'])
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
+
+# Step 1: Ingest Orders from S3 Landing Zone
+orders_dyf = glueContext.create_dynamic_frame.from_options(
+    connection_type="s3",
+    format="csv",
+    connection_options={"paths": ["s3://ecommerce-data-lake/landing/orders/"], "recurse": True},
+    format_options={"withHeader": True, "separator": ","},
+    transformation_ctx="orders_dyf"
+)
+
+# Step 2: Read Customers Dimension from RDS PostgreSQL
+customers_dyf = glueContext.create_dynamic_frame.from_catalog(
+    database="ecommerce_catalog_db",
+    table_name="rds_customers",
+    transformation_ctx="customers_dyf"
+)
+
+# Step 3: Evaluate Data Quality Constraints
+from awsglue.transforms import EvaluateDataQuality
+ruleset = """
+    Rules = [
+        ColumnValues "order_id" != NULL,
+        IsUnique "order_id",
+        ColumnValues "quantity" > 0,
+        ColumnValues "price" > 0,
+        Completeness "customer_id" >= 0.99
+    ]
+"""
+dq_results = EvaluateDataQuality.apply(
+    frame=orders_dyf,
+    ruleset=ruleset,
+    publishing_options={"enableDataQualityCloudWatchMetrics": True}
+)
+good_orders = dq_results.filter(lambda r: r["dataQualityEvaluationResult"] == "Passed")
+
+# Step 4: Apply Mapping & Schema Normalization
+mapped_dyf = ApplyMapping.apply(
+    frame=good_orders,
+    mappings=[
+        ("order_id", "string", "order_id", "long"),
+        ("customer_id", "string", "customer_id", "string"),
+        ("product", "string", "product", "string"),
+        ("quantity", "string", "quantity", "int"),
+        ("price", "string", "unit_price", "double"),
+        ("order_date", "string", "order_date", "date"),
+        ("status", "string", "status", "string")
+    ],
+    transformation_ctx="mapped_dyf"
+)
+
+# Step 5: Filter Completed Orders
+filtered_orders = Filter.apply(
+    frame=mapped_dyf,
+    f=lambda row: row["status"] == "completed",
+    transformation_ctx="filtered_orders"
+)
+
+# Step 6: DynamicFrame Join & Total Calculation
+enriched_dyf = Join.apply(
+    frame1=filtered_orders,
+    frame2=customers_dyf,
+    keys1=["customer_id"],
+    keys2=["customer_id"],
+    transformation_ctx="enriched_dyf"
+)
+
+enriched_df = enriched_dyf.toDF().withColumn("total_amount", F.col("quantity") * F.col("unit_price"))
+enriched_dyf = DynamicFrame.fromDF(enriched_df, glueContext, "enriched_dyf")
+
+# Step 7: Regional Aggregation Rollup
+agg_df = enriched_df.groupBy("region").agg(
+    F.count("order_id").alias("total_orders"),
+    F.sum("total_amount").alias("total_revenue"),
+    F.avg("total_amount").alias("avg_order_value"),
+    F.sum("quantity").alias("total_items_sold")
+)
+agg_dyf = DynamicFrame.fromDF(agg_df, glueContext, "agg_dyf")
+
+# Step 8: Write to S3 Curated Lake (Snappy Parquet)
+glueContext.write_dynamic_frame.from_options(
+    frame=enriched_dyf,
+    connection_type="s3",
+    format="glueparquet",
+    connection_options={
+        "path": "s3://ecommerce-data-lake/curated/orders/",
+        "partitionKeys": ["order_date"]
+    },
+    format_options={"compression": "snappy"},
+    transformation_ctx="s3_curated_sink"
+)
+
+# Step 9: Load Aggregates into Amazon Redshift
+glueContext.write_dynamic_frame.from_options(
+    frame=agg_dyf,
+    connection_type="redshift",
+    connection_options={
+        "redshiftTmpDir": "s3://ecommerce-data-lake/temp/redshift/",
+        "useConnectionProperties": "true",
+        "dbtable": "analytics.regional_sales_summary",
+        "connectionName": "redshift-dw-cluster",
+        "preactions": "TRUNCATE TABLE analytics.regional_sales_summary"
+    },
+    transformation_ctx="redshift_sink"
+)
+
+job.commit()
+print("AWS Glue ETL Pipeline execution finished successfully.")`;
+
+const CFN_TEMPLATE = `AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS Glue Serverless ETL Pipeline Stack
+
+Parameters:
+  DataLakeBucket:
+    Type: String
+    Default: ecommerce-data-lake
+
+Resources:
+  GlueCatalogDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: ecommerce_catalog_db
+        Description: Central Data Catalog for e-commerce lakehouse
+
+  GlueETLRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: GluePipelineExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      Policies:
+        - PolicyName: S3DataLakeAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:aws:s3:::\${DataLakeBucket}"
+                  - !Sub "arn:aws:s3:::\${DataLakeBucket}/*"
+
+  GlueETLJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: ecommerce_daily_analytics_etl
+      Role: !GetAtt GlueETLRole.Arn
+      GlueVersion: '4.0'
+      WorkerType: G.1X
+      NumberOfWorkers: 5
+      Timeout: 60
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub "s3://\${DataLakeBucket}/scripts/glue_etl.py"
+        PythonVersion: '3'
+      DefaultArguments:
+        '--job-bookmark-option': job-bookmark-enable
+        '--enable-metrics': 'true'
+        '--enable-continuous-cloudwatch-log': 'true'
+        '--TempDir': !Sub "s3://\${DataLakeBucket}/temp/"
+
+Outputs:
+  JobName:
+    Value: !Ref GlueETLJob
+  CatalogDatabase:
+    Value: !Ref GlueCatalogDatabase`;
+
+let currentExportTab = 'script';
+
+function openExportModal() {
+  switchExportTab('script');
+  document.getElementById('exportModal').classList.add('open');
+}
+
+function closeExportModal() {
+  document.getElementById('exportModal').classList.remove('open');
+}
+
+function switchExportTab(tab) {
+  currentExportTab = tab;
+  document.getElementById('tabExportScript').classList.toggle('active', tab === 'script');
+  document.getElementById('tabExportCfn').classList.toggle('active', tab === 'cfn');
+
+  const content = tab === 'script' ? FULL_GLUE_SCRIPT : CFN_TEMPLATE;
+  document.getElementById('exportCodeBlock').textContent = content;
+}
+
+function copyExportCode() {
+  const content = currentExportTab === 'script' ? FULL_GLUE_SCRIPT : CFN_TEMPLATE;
+  navigator.clipboard.writeText(content);
+  alert('Code copied to clipboard!');
+}
+
+function downloadExportCode() {
+  const content = currentExportTab === 'script' ? FULL_GLUE_SCRIPT : CFN_TEMPLATE;
+  const filename = currentExportTab === 'script' ? 'glue_etl.py' : 'glue_infra.yaml';
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Start
+init();
+</script>
+</body>
+</html>
